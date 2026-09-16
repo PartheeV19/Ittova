@@ -18,26 +18,23 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentView]);
 
-  // If no user is logged in, show login screen
-  if (!currentUser) {
-    return (
-      <>
-        <LoginScreen />
-        <Toast />
-      </>
-    );
-  }
-
   return (
     <div className="app-root">
       <Navbar />
 
-      <main className="container" id="app-container" style={{ paddingBottom: '5rem' }}>
-        {currentUser.role === 'customer' && <CustomerPortal />}
-        {currentUser.role === 'supplier' && <SupplierPortal />}
-        {currentUser.role === 'staff'    && <StaffPortal />}
-        {currentUser.role === 'admin'    && <AdminPortal />}
-      </main>
+      {/* View Switching */}
+      {currentView === 'login' && !currentUser ? (
+        <LoginScreen />
+      ) : currentView === 'home' || !currentUser ? (
+        <Home />
+      ) : (
+        <main className="container" id="app-container" style={{ padding: '2.5rem clamp(20px, 4vw, 64px) 5rem' }}>
+          {currentUser.role === 'customer' && <CustomerPortal />}
+          {currentUser.role === 'supplier' && <SupplierPortal />}
+          {currentUser.role === 'staff'    && <StaffPortal />}
+          {currentUser.role === 'admin'    && <AdminPortal />}
+        </main>
+      )}
 
       <Toast />
       <CADModal />

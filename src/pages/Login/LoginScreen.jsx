@@ -54,7 +54,7 @@ const ROLE_TABS = [
 ];
 
 export default function LoginScreen() {
-  const { db, login, showToast } = useApp();
+  const { db, login, showToast, setCurrentView } = useApp();
   const [activeTab, setActiveTab] = useState('customer');
   const [customerId, setCustomerId] = useState('');
   const [vendorId, setVendorId] = useState('');
@@ -99,17 +99,15 @@ export default function LoginScreen() {
     <div className="enterprise-auth-wrapper">
       {/* Top Utility Bar */}
       <header className="auth-top-bar">
-        <div className="auth-brand">
-          <div className="brand-mark-hex">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-              <polygon points="12 2 2 7 2 17 12 22 22 17 22 7 12 2"/>
-              <circle cx="12" cy="12" r="3.5" fill="currentColor"/>
-            </svg>
-          </div>
-          <div className="brand-titles">
-            <span className="brand-name">ITTOVA</span>
-            <span className="brand-tag">PRECISION SOURCING PLATFORM</span>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <button 
+            type="button" 
+            className="btn-link" 
+            onClick={() => setCurrentView('home')}
+            style={{ fontSize: '0.82rem', fontWeight: 600 }}
+          >
+            &larr; Back to Website Overview
+          </button>
         </div>
         <div className="auth-security-badges">
           <span className="auth-sec-pill">
