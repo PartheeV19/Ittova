@@ -1,0 +1,9 @@
+Further, 
+1. Customer-registration and work platform Chat board, Drg. and Process sheet, Logistics, Daily status updates, 
+2. Vendor-registration and work platform, Chat board, Drg. and Process sheet, Inwards if any, mfg. progress, QC control, Logistics, Daily status update alarm, 
+3. Banks/NBFCs for financing the Vendor, if required.
+4. Raw material Trader/Manufacturer, if required by the Vendor/Customer.
+5. App for Process verification team (After AI filtration, about Process and Vendor), they may be working Part time, WFH.
+6. App for Logistics team (Vendor to ITTOX store, ITTOX store to Customer, Material trader to Vendor)
+7. App for IGI team (Inward and Outward, QC reports)
+8. App for Stores team(Intake and Dispatch after QC)
