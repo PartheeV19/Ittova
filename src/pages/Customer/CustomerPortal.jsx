@@ -15,7 +15,8 @@ export default function CustomerPortal() {
     approveCustomerDelivery, 
     payCustomerFinal, 
     setCadModal,
-    showToast 
+    showToast,
+    navigateBack
   } = useApp();
 
   const [isRegistering, setIsRegistering] = useState(false);
@@ -55,6 +56,21 @@ export default function CustomerPortal() {
 
   return (
     <div className="view">
+      {/* In-App Back Navigation */}
+      <div style={{ marginBottom: '16px' }}>
+        <button 
+          type="button" 
+          className="btn-link" 
+          onClick={navigateBack}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.86rem', fontWeight: 600, color: 'var(--ink)' }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back to Overview
+        </button>
+      </div>
+
       {/* Customer Identity Banner */}
       <div className="card">
         <div className="portal-header">

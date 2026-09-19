@@ -13,12 +13,92 @@ export function AppProvider({ children }) {
     }
   });
 
-  const [currentView, setCurrentView] = useState('home');
+  const [currentView, setCurrentViewState] = useState(() => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.replace(/^#\/?/, '');
+      if (['home', 'login', 'customer', 'vendor', 'supplier', 'staff', 'admin'].includes(hash)) {
+        return hash === 'supplier' ? 'vendor' : hash;
+      }
+    }
+    return 'home';
+  });
+
+  const setCurrentView = (view, replace = false) => {
+    const normalizedView = view === 'supplier' ? 'vendor' : view;
+    setCurrentViewState(normalizedView);
+    if (typeof window !== 'undefined') {
+      const targetHash = '#' + normalizedView;
+      if (window.location.hash !== targetHash) {
+        if (replace) {
+          window.history.replaceState({ view: normalizedView }, '', targetHash);
+        } else {
+          window.history.pushState({ view: normalizedView }, '', targetHash);
+        }
+      }
+    }
+  };
+
+  const navigateBack = () => {
+    if (typeof window !== 'undefined') {
+      if (window.history.length > 1 && window.location.hash && window.location.hash !== '#home') {
+        window.history.back();
+      } else {
+        setCurrentView('home');
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const initialView = window.location.hash.replace(/^#\/?/, '') || 'home';
+      window.history.replaceState({ view: initialView }, '', '#' + initialView);
+
+      const handlePopState = (e) => {
+        const nextView = e.state?.view || window.location.hash.replace(/^#\/?/, '') || 'home';
+        setCurrentViewState(nextView === 'supplier' ? 'vendor' : nextView);
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, []);
+
   const [toasts, setToasts] = useState([]);
   const [cadModal, setCadModal] = useState(null);
 
   // Role-based auth
   const [currentUser, setCurrentUser] = useState(null); // { role, id, name, subRole }
+
+  // Starting gate visitor intake profile
+  const [visitorProfile, setVisitorProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ITOVA_VISITOR');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const saveVisitorProfile = (profile) => {
+    setVisitorProfile(profile);
+    try {
+      localStorage.setItem('ITOVA_VISITOR', JSON.stringify(profile));
+    } catch (e) {
+      console.error(e);
+    }
+    setCurrentView('home');
+    showToast(`Access granted! Welcome, ${profile.name} (${profile.company}).`);
+  };
+
+  const clearVisitorProfile = () => {
+    setVisitorProfile(null);
+    try {
+      localStorage.removeItem('ITOVA_VISITOR');
+    } catch (e) {
+      console.error(e);
+    }
+    showToast('Visitor session reset. Please re-enter basic details.');
+  };
 
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [selectedVendorId, setSelectedVendorId] = useState('');
@@ -105,6 +185,18 @@ export function AppProvider({ children }) {
   // --- Drawing Release & Quoting Actions ---
   const submitDrawings = (cid, radius = 50) => {
     const pid = getUID('PRJ');
+
+    // Build quotes dynamically from registered vendors if available, or clean generic audited facilities
+    const availableVendors = db.vendors.length > 0 
+      ? db.vendors.map(v => ({ id: v.id, label: `${v.id} (${v.name})` }))
+      : [
+          { id: 'FAC-01', label: 'Audited Facility [Cherlapally Hub]' },
+          { id: 'FAC-02', label: 'Audited Facility [Balanagar Hub]' }
+        ];
+
+    const v1 = availableVendors[0] || { id: 'FAC-01', label: 'Audited Machining Hub' };
+    const v2 = availableVendors[1] || availableVendors[0];
+
     const simDrawings = [
       { 
         dwgNo: 'DWG-A101', 
@@ -115,8 +207,8 @@ export function AppProvider({ children }) {
         mfgScope: 'Vendor', 
         finScope: 'Vendor',
         processes: [
-          { stageId: 1, name: 'CNC LASER CUTTING', topVendors: ['V-201 (BNR Precision)'], quotes: [{ vid: 'V-201 (BNR Precision)', cost: 12500, time: 3 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' },
-          { stageId: 2, name: 'CNC MILLING', topVendors: ['V-201 (BNR Precision)', 'V-202 (Apex)'], quotes: [{ vid: 'V-201 (BNR Precision)', cost: 28000, time: 5 }, { vid: 'V-202 (Apex)', cost: 31000, time: 4 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' }
+          { stageId: 1, name: 'CNC LASER CUTTING', topVendors: [v1.label], quotes: [{ vid: v1.label, cost: 12500, time: 3 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' },
+          { stageId: 2, name: 'CNC MILLING', topVendors: [v1.label, v2.label], quotes: [{ vid: v1.label, cost: 28000, time: 5 }, { vid: v2.label, cost: 31000, time: 4 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' }
         ]
       },
       { 
@@ -128,8 +220,8 @@ export function AppProvider({ children }) {
         mfgScope: 'Vendor', 
         finScope: 'Vendor',
         processes: [
-          { stageId: 1, name: 'CNC LASER CUTTING', topVendors: ['V-201 (BNR Precision)'], quotes: [{ vid: 'V-201 (BNR Precision)', cost: 18000, time: 2 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' },
-          { stageId: 2, name: 'CNC BENDING', topVendors: ['V-201 (BNR Precision)'], quotes: [{ vid: 'V-201 (BNR Precision)', cost: 14000, time: 3 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' }
+          { stageId: 1, name: 'CNC LASER CUTTING', topVendors: [v1.label], quotes: [{ vid: v1.label, cost: 18000, time: 2 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' },
+          { stageId: 2, name: 'CNC BENDING', topVendors: [v1.label], quotes: [{ vid: v1.label, cost: 14000, time: 3 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' }
         ]
       }
     ];
@@ -200,7 +292,7 @@ export function AppProvider({ children }) {
       ...prev,
       projects: prev.projects.map(p => p.id === pid ? {
         ...p,
-        custDeliveryAddress: deliveryAddress || 'Medha Tech Park, Hyderabad',
+        custDeliveryAddress: deliveryAddress || 'Central Customer Inward Receiving Dock',
         status: 'PENDING_LOGISTICS_FEE'
       } : p)
     }));
@@ -388,6 +480,7 @@ export function AppProvider({ children }) {
       logout,
       currentView,
       setCurrentView,
+      navigateBack,
       toasts,
       showToast,
       cadModal,
@@ -425,7 +518,10 @@ export function AppProvider({ children }) {
       submitQCReport,
       requestFreightFee,
       dispatchToCustomer,
-      payVendor
+      payVendor,
+      visitorProfile,
+      saveVisitorProfile,
+      clearVisitorProfile
     }}>
       {children}
     </AppContext.Provider>

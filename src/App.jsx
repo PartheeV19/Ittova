@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useApp } from './context/AppContext';
+import StartingGate from './pages/StartingGate/StartingGate';
 import Navbar from './components/Navbar';
 import Toast from './components/Toast';
 import CADModal from './components/CADModal';
@@ -11,12 +12,22 @@ import StaffPortal from './pages/Staff/StaffPortal';
 import AdminPortal from './pages/Admin/AdminPortal';
 
 export default function App() {
-  const { currentUser, currentView } = useApp();
+  const { currentUser, currentView, visitorProfile, saveVisitorProfile } = useApp();
 
   // Scroll to top on view change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [currentView]);
+  }, [currentView, visitorProfile]);
+
+  // If visitor has not provided their basic details yet, show the starting page
+  if (!visitorProfile) {
+    return (
+      <div className="app-root">
+        <StartingGate onComplete={saveVisitorProfile} />
+        <Toast />
+      </div>
+    );
+  }
 
   return (
     <div className="app-root">

@@ -9,7 +9,8 @@ export default function SupplierPortal() {
     addVendor, 
     acceptVendorPO, 
     requestVendorDispatch, 
-    showToast 
+    showToast,
+    navigateBack 
   } = useApp();
 
   const [isRegistering, setIsRegistering] = useState(false);
@@ -41,14 +42,14 @@ export default function SupplierPortal() {
 
   const handleDemoFill = () => {
     setFormData({
-      name: 'Apex Machining Works',
-      location: 'Cherlapally Industrial Area, Hyderabad',
+      name: 'Industrial Engineering Works',
+      location: 'Industrial Area, Cherlapally, Hyderabad',
       phone: '+91 91234 56789',
-      email: 'orders@apexmachining.in',
+      email: 'orders@industrialworks.in',
       m1_name: 'Doosan Lynx 220 LCNC',
       m1_proc: 'CNC TURNING',
       m1_size: 'Ø300 x 510 mm',
-      m1_axis: '2-Axis High Precision Turning',
+      m1_axis: '2-Axis CNC Turning',
       m1_mat: 'SS 304, MS, Brass',
       m1_rate: 1500,
       m2_name: 'Haas VF-2SS Super Speed',
@@ -110,6 +111,21 @@ export default function SupplierPortal() {
 
   return (
     <div className="view">
+      {/* In-App Back Navigation */}
+      <div style={{ marginBottom: '16px' }}>
+        <button 
+          type="button" 
+          className="btn-link" 
+          onClick={navigateBack}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.86rem', fontWeight: 600, color: 'var(--ink)' }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back to Overview
+        </button>
+      </div>
+
       {/* Supplier Identity Banner */}
       <div className="card">
         <div className="portal-header">
@@ -149,12 +165,9 @@ export default function SupplierPortal() {
               <div className="kicker">Manufacturing Partner Onboarding</div>
               <h2 style={{ marginBottom: '0.25rem' }}>Supplier &amp; Machinery Matrix Registration</h2>
               <p className="subtitle" style={{ marginBottom: 0 }}>
-                Register precision CNC machines, working envelopes, and certifications. The ITTOVA Vendor Audit team performs physical verification before order routing.
+                Register CNC machines, working envelopes, and certifications. The ITTOVA Vendor Audit team performs physical verification before order routing.
               </p>
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={handleDemoFill}>
-              Auto-fill demo
-            </button>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -165,7 +178,7 @@ export default function SupplierPortal() {
                   type="text" 
                   value={formData.name} 
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. BNR Precision Engineering" 
+                  placeholder="e.g. Industrial CNC Machining Works" 
                 />
               </div>
               <div>
@@ -320,7 +333,7 @@ export default function SupplierPortal() {
                 {p.status === 'PO_ACCEPTED_VENDOR' && (
                   <div style={{ marginTop: 'var(--sp-4)' }}>
                     <div className="alert alert-process">
-                      Parts currently undergoing precision CNC operations. Once complete, request logistics pickup.
+                      Parts currently undergoing CNC operations. Once complete, request logistics pickup.
                     </div>
                     <button className="btn btn-success" onClick={() => requestVendorDispatch(p.id)}>
                       Mark Machining Finished &amp; Request Logistics Pickup

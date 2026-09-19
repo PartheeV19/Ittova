@@ -95,7 +95,7 @@ export default function StaffPortal() {
                   <div className="inner-panel">
                     <h5 style={{ color: 'var(--accent)', fontSize: '0.78rem', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Operations &amp; Banking</h5>
                     <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>Works:</strong> {c.factoryAddress || c.address}</p>
-                    <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>Sector:</strong> {c.sector || 'Precision Engineering'}</p>
+                    <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>Sector:</strong> {c.sector || 'Industrial Engineering'}</p>
                     <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>Products:</strong> {c.product || 'Sub-Assemblies'}</p>
                     <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>Bank:</strong> {c.bankName || 'State Bank of India'} &bull; {c.bankBranch || 'Hyderabad'}</p>
                     <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>A/c No:</strong> {c.bankAcc || '••••••••'} (IFSC: {c.bankIfsc || 'N/A'})</p>
@@ -516,10 +516,10 @@ export default function StaffPortal() {
                     </button>
                   </div>
                   <div className="alert alert-info" style={{ margin: '0.75rem 0' }}>
-                    Laser and CNC milling tolerances verified on Zeiss CMM. Deviation &lt; &plusmn;0.02 mm. Material test certificate attached.
+                    Dimensional tolerances verified on calibrated CMM. Drawing conformance passed. Inspection report attached.
                   </div>
                   <button className="btn btn-success" onClick={() => submitQCReport(p.id)}>
-                    Issue ISO Conformance Certificate &amp; Authorize Delivery Approval
+                    Approve QC Conformance Report &amp; Authorize Delivery Release
                   </button>
                 </div>
               ))

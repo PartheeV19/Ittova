@@ -3,8 +3,8 @@ import { useApp } from '../context/AppContext';
 
 const ROLE_LABELS = {
   customer: 'Customer Portal',
-  supplier: 'Supplier Network',
-  staff:    'Operations Command',
+  supplier: 'Vendor Platform',
+  staff:    'Operations Console',
   admin:    'Executive Governance',
 };
 
@@ -33,7 +33,7 @@ const ROLE_ICONS = {
 };
 
 export default function Navbar() {
-  const { currentUser, currentView, setCurrentView, logout } = useApp();
+  const { currentUser, currentView, setCurrentView, logout, visitorProfile, clearVisitorProfile } = useApp();
 
   const roleLabel = ROLE_LABELS[currentUser?.role] || '';
   const subRole = currentUser?.subRole
@@ -54,131 +54,140 @@ export default function Navbar() {
   };
 
   return (
-    <header className="enterprise-navbar">
-      {/* Brand Section */}
-      <div 
-        className="nav-brand-section" 
-        onClick={() => setCurrentView(currentUser ? (currentView === 'home' ? (currentUser.role === 'supplier' ? 'vendor' : currentUser.role) : 'home') : 'home')}
-      >
-        <div className="brand-mark-hex">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-            <polygon points="12 2 2 7 2 17 12 22 22 17 22 7 12 2"/>
-            <circle cx="12" cy="12" r="3.5" fill="currentColor"/>
-          </svg>
+    <>
+      <div className="topline" />
+      <header className="enterprise-navbar">
+        {/* Brand Section */}
+        <div 
+          className="nav-brand-section" 
+          onClick={() => setCurrentView(currentUser ? (currentView === 'home' ? (currentUser.role === 'supplier' ? 'vendor' : currentUser.role) : 'home') : 'home')}
+        >
+          <span className="nav-brand-title">
+            IT<span className="brand-accent-o">O</span>VA
+          </span>
         </div>
-        <div className="nav-brand-meta">
-          <span className="nav-brand-title">ITTOVA</span>
-          <span className="nav-brand-sub">PRECISION SOURCING</span>
-        </div>
-      </div>
 
-      {/* Center Navigation Links */}
-      {!currentUser ? (
-        <nav className="nav-center-menu">
-          <button 
-            type="button"
-            className={`nav-item-link ${currentView === 'home' ? 'active' : ''}`}
-            onClick={() => setCurrentView('home')}
-          >
-            Overview
-          </button>
-          <button 
-            type="button"
-            className="nav-item-link"
-            onClick={() => navigateToSection('quoting-engine')}
-          >
-            AI Quoting
-          </button>
-          <button 
-            type="button"
-            className="nav-item-link"
-            onClick={() => navigateToSection('quoting-engine')}
-          >
-            Capabilities
-          </button>
-          <button 
-            type="button"
-            className="nav-item-link"
-            onClick={() => setCurrentView('home')}
-          >
-            Sectors
-          </button>
-          <button 
-            type="button"
-            className="nav-item-link"
-            onClick={() => setCurrentView('home')}
-          >
-            Platforms
-          </button>
-        </nav>
-      ) : (
-        <nav className="nav-center-menu">
-          <button 
-            type="button"
-            className={`nav-item-link ${currentView === 'home' ? 'active' : ''}`}
-            onClick={() => setCurrentView('home')}
-          >
-            Website Overview
-          </button>
-          <button 
-            type="button"
-            className={`nav-item-link ${currentView !== 'home' ? 'active' : ''}`}
-            onClick={() => setCurrentView(currentUser.role === 'supplier' ? 'vendor' : currentUser.role)}
-          >
-            Portal Workspace
-          </button>
-        </nav>
-      )}
-
-      {/* Right Actions */}
-      <div className="nav-actions">
+        {/* Center Navigation Links */}
         {!currentUser ? (
-          <>
-            <span className="status-indicator-pill">
-              <span className="status-live-dot" />
-              <span>38 Audited Facilities</span>
-            </span>
+          <nav className="nav-center-menu">
             <button 
-              className="btn btn-sm"
+              type="button"
+              className={`nav-item-link ${currentView === 'home' ? 'active' : ''}`}
+              onClick={() => setCurrentView('home')}
+            >
+              Overview
+            </button>
+            <button 
+              type="button"
+              className="nav-item-link"
+              onClick={() => navigateToSection('how')}
+            >
+              How ITOVA Works
+            </button>
+            <button 
+              type="button"
+              className="nav-item-link"
+              onClick={() => navigateToSection('network')}
+            >
+              Our Network
+            </button>
+            <button 
+              type="button"
+              className="nav-item-link"
+              onClick={() => navigateToSection('about')}
+            >
+              Why ITOVA
+            </button>
+            <button 
+              type="button"
+              className="nav-item-link"
               onClick={() => setCurrentView('login')}
             >
-              Launch Portal / Sign In &rarr;
+              Portals
             </button>
-          </>
+          </nav>
         ) : (
-          <>
-            <span className="nav-portal-badge">
-              {ROLE_ICONS[currentUser?.role]}
-              <span>{roleLabel}</span>
-              {subRole && (
-                <span style={{ fontSize: '0.7rem', color: 'var(--color-gold)', marginLeft: '4px' }}>
-                  ({subRole})
+          <nav className="nav-center-menu">
+            <button 
+              type="button"
+              className={`nav-item-link ${currentView === 'home' ? 'active' : ''}`}
+              onClick={() => setCurrentView('home')}
+            >
+              Platform Overview
+            </button>
+            <button 
+              type="button"
+              className={`nav-item-link ${currentView !== 'home' ? 'active' : ''}`}
+              onClick={() => setCurrentView(currentUser.role === 'supplier' ? 'vendor' : currentUser.role)}
+            >
+              Active Workspace
+            </button>
+          </nav>
+        )}
+
+        {/* Right Actions */}
+        <div className="nav-actions">
+          {!currentUser ? (
+            <>
+              {visitorProfile && (
+                <span className="visitor-badge-pill" title={`Role: ${visitorProfile.role} • ${visitorProfile.company}`}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/>
+                  </svg>
+                  <span>{visitorProfile.name}</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>({visitorProfile.company})</span>
+                  <button 
+                    type="button" 
+                    className="visitor-switch-btn" 
+                    onClick={clearVisitorProfile}
+                    title="Change visitor details"
+                  >
+                    Switch
+                  </button>
                 </span>
               )}
-            </span>
+              <button 
+                className="btn btn-sm btn-dark"
+                onClick={() => setCurrentView('login')}
+              >
+                Launch Portal &rarr;
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="nav-portal-badge">
+                {ROLE_ICONS[currentUser?.role]}
+                <span>{roleLabel}</span>
+                {subRole && (
+                  <span style={{ fontSize: '0.7rem', color: 'var(--red)', marginLeft: '4px', fontWeight: 800 }}>
+                    ({subRole})
+                  </span>
+                )}
+              </span>
 
-            <span className="nav-user-chip">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/>
-              </svg>
-              <span>{currentUser?.name}</span>
-            </span>
+              <span className="nav-user-chip">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/>
+                </svg>
+                <span>{currentUser?.name}</span>
+              </span>
 
-            <button 
-              className="nav-logout-btn" 
-              onClick={logout} 
-              title="Sign Out of Session"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
-              Sign Out
-            </button>
-          </>
-        )}
-      </div>
-    </header>
+              <button 
+                className="nav-logout-btn" 
+                onClick={logout} 
+                title="Sign Out of Session"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Sign Out
+              </button>
+            </>
+          )}
+        </div>
+      </header>
+    </>
   );
 }

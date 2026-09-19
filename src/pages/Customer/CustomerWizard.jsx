@@ -86,29 +86,29 @@ export default function CustomerWizard({ onComplete, onCancel }) {
 
   const handleDemoFill = () => {
     setFormData({
-      name: 'Medha Servo Drives Private Limited',
+      name: 'Zenith Engineering Components Private Limited',
       entityType: 'Private Limited Company',
-      cin: 'U31909TG1990PTC011234',
-      pan: 'AABCM1234P',
-      gst: '36AABCM1234P1Z4',
-      address: 'Plot 21/A, R&D Enclave, Cherlapally, Hyderabad, Telangana 500051',
+      cin: 'U31909TG2018PTC098765',
+      pan: 'AABCZ9876K',
+      gst: '36AABCZ9876K1Z8',
+      address: 'Plot 45, Phase-III, IDA Industrial Estate, Hyderabad, Telangana 500051',
       signatoryName: 'K. V. Rama Rao',
       signatoryDesig: 'Director & Head of Procurement',
       signatoryPhone: '+91 98490 12345',
-      signatoryEmail: 'ramarao@medhaservo.com',
-      factoryAddress: 'Sy No. 501, Phase-V, IDA Cherlapally, Medchal-Malkajgiri, Telangana 500051',
-      deliveryAddress: 'Central Inward Stores, Gate No. 2, Medha Servo Campus, Cherlapally',
+      signatoryEmail: 'signatory@zenitheng.com',
+      factoryAddress: 'Plot 45, Phase-III, IDA Industrial Estate, Hyderabad 500051',
+      deliveryAddress: 'Central Inward Stores, Receiving Gate 1, Industrial Estate, Hyderabad',
       procName: 'N. Suresh Kumar',
-      procEmail: 'procurement@medhaservo.com',
+      procEmail: 'procurement@zenitheng.com',
       procPhone: '+91 98491 88776',
       finName: 'P. Laxman Rao',
-      finEmail: 'finance@medhaservo.com',
+      finEmail: 'finance@zenitheng.com',
       finPhone: '+91 98492 55443',
       qcName: 'D. Srinivas',
-      qcEmail: 'qa.inward@medhaservo.com',
+      qcEmail: 'qa.inward@zenitheng.com',
       qcPhone: '+91 98493 22110',
-      sector: 'Railways & Rolling Stock',
-      product: 'Traction Converters, Auxiliary Power Units, TCMS Enclosures',
+      sector: 'Industrial Engineering & Equipment',
+      product: 'Machined Housings, Fluid Manifolds, Structural Frames',
       turnover: '₹25 Cr – ₹100 Cr',
       bankName: 'State Bank of India',
       bankBranch: 'Industrial Finance Branch, Punjagutta, Hyderabad',
@@ -191,10 +191,6 @@ export default function CustomerWizard({ onComplete, onCancel }) {
           </p>
         </div>
         <div className="flex-gap">
-          <button className="btn btn-ghost btn-sm" onClick={handleDemoFill}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
-            Auto-fill Demo Profile
-          </button>
           {onCancel && (
             <button className="btn btn-secondary btn-sm" onClick={onCancel}>
               Cancel
@@ -245,7 +241,7 @@ export default function CustomerWizard({ onComplete, onCancel }) {
                 type="text" 
                 value={formData.name} 
                 onChange={e => updateField('name', e.target.value)}
-                placeholder="e.g. Medha Servo Drives Private Limited" 
+                placeholder="e.g. Industrial Engineering Components Ltd" 
               />
             </div>
             <div>
@@ -337,7 +333,7 @@ export default function CustomerWizard({ onComplete, onCancel }) {
                 type="email" 
                 value={formData.signatoryEmail} 
                 onChange={e => updateField('signatoryEmail', e.target.value)}
-                placeholder="ramarao@medhaservo.com" 
+                placeholder="signatory@company.com" 
               />
             </div>
           </div>
@@ -391,7 +387,7 @@ export default function CustomerWizard({ onComplete, onCancel }) {
                 type="text" 
                 value={formData.deliveryAddress} 
                 onChange={e => updateField('deliveryAddress', e.target.value)}
-                placeholder="Central Inward Stores, Gate No. 2, Medha Servo Campus" 
+                placeholder="e.g. Central Inward Stores, Gate No. 1, Delivery Receiving Dock" 
               />
             </div>
           </div>
@@ -405,7 +401,7 @@ export default function CustomerWizard({ onComplete, onCancel }) {
               <label>Contact Name</label>
               <input type="text" value={formData.procName} onChange={e => updateField('procName', e.target.value)} placeholder="N. Suresh Kumar" />
               <label>Official Email</label>
-              <input type="email" value={formData.procEmail} onChange={e => updateField('procEmail', e.target.value)} placeholder="procurement@medhaservo.com" />
+              <input type="email" value={formData.procEmail} onChange={e => updateField('procEmail', e.target.value)} placeholder="procurement@company.com" />
               <label>Mobile Number</label>
               <input type="text" value={formData.procPhone} onChange={e => updateField('procPhone', e.target.value)} placeholder="+91 98491 88776" />
             </div>
@@ -414,7 +410,7 @@ export default function CustomerWizard({ onComplete, onCancel }) {
               <label>Contact Name</label>
               <input type="text" value={formData.finName} onChange={e => updateField('finName', e.target.value)} placeholder="P. Laxman Rao" />
               <label>Official Email</label>
-              <input type="email" value={formData.finEmail} onChange={e => updateField('finEmail', e.target.value)} placeholder="finance@medhaservo.com" />
+              <input type="email" value={formData.finEmail} onChange={e => updateField('finEmail', e.target.value)} placeholder="finance@company.com" />
               <label>Mobile Number</label>
               <input type="text" value={formData.finPhone} onChange={e => updateField('finPhone', e.target.value)} placeholder="+91 98492 55443" />
             </div>
@@ -423,7 +419,7 @@ export default function CustomerWizard({ onComplete, onCancel }) {
               <label>Contact Name</label>
               <input type="text" value={formData.qcName} onChange={e => updateField('qcName', e.target.value)} placeholder="D. Srinivas" />
               <label>Official Email</label>
-              <input type="email" value={formData.qcEmail} onChange={e => updateField('qcEmail', e.target.value)} placeholder="qa.inward@medhaservo.com" />
+              <input type="email" value={formData.qcEmail} onChange={e => updateField('qcEmail', e.target.value)} placeholder="quality@company.com" />
               <label>Mobile Number</label>
               <input type="text" value={formData.qcPhone} onChange={e => updateField('qcPhone', e.target.value)} placeholder="+91 98493 22110" />
             </div>
@@ -442,7 +438,7 @@ export default function CustomerWizard({ onComplete, onCancel }) {
                 <option value="Heavy Engineering & Power">Heavy Engineering &amp; Power</option>
                 <option value="Medical Devices & Bio-Engineering">Medical Devices &amp; Bio-Engineering</option>
                 <option value="Industrial Automation & Robotics">Industrial Automation &amp; Robotics</option>
-                <option value="Precision Machinery Equipment">Precision Machinery Equipment</option>
+                <option value="Industrial Machinery Equipment">Industrial Machinery Equipment</option>
               </select>
             </div>
             <div>
@@ -770,7 +766,7 @@ export default function CustomerWizard({ onComplete, onCancel }) {
             <div className="inner-panel">
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 600, cursor: 'pointer' }}>
                 <input type="checkbox" checked={formData.apprAero} onChange={e => updateField('apprAero', e.target.checked)} />
-                AS9100D / Aerospace Certified
+                ISO 9001 / Standard Quality Assurance Certified
               </label>
             </div>
             <div className="inner-panel">
