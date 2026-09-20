@@ -32,6 +32,7 @@ export default function StartingGate({ onComplete }) {
     }
     if (!formData.company.trim()) newErrors.company = 'Company / Organization is required';
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+    if (!formData.role.trim()) newErrors.role = 'Participant role is required';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);

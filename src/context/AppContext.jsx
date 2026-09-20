@@ -7,7 +7,20 @@ export function AppProvider({ children }) {
   const [db, setDb] = useState(() => {
     try {
       const saved = localStorage.getItem('ITTOX_DB');
-      return saved ? JSON.parse(saved) : INITIAL_DB;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (!parsed.vendors || parsed.vendors.length === 0) {
+          parsed.vendors = INITIAL_DB.vendors;
+        }
+        if (!parsed.customers || parsed.customers.length === 0) {
+          parsed.customers = INITIAL_DB.customers;
+        }
+        if (!parsed.projects || parsed.projects.length === 0) {
+          parsed.projects = INITIAL_DB.projects;
+        }
+        return parsed;
+      }
+      return INITIAL_DB;
     } catch {
       return INITIAL_DB;
     }
@@ -23,7 +36,7 @@ export function AppProvider({ children }) {
     return 'home';
   });
 
-  const setCurrentView = (view, replace = false) => {
+  const setCurrentView = (view, replace = true) => {
     const normalizedView = view === 'supplier' ? 'vendor' : view;
     setCurrentViewState(normalizedView);
     if (typeof window !== 'undefined') {
@@ -79,6 +92,19 @@ export function AppProvider({ children }) {
     }
   });
 
+  const getVisitorRoute = (profile) => {
+    const role = profile?.role || '';
+    if (role.includes('Buyer') || role.includes('OEM')) return 'customer';
+    if (
+      role.includes('Manufacturing') ||
+      role.includes('Machine Shop') ||
+      role.includes('Raw Material') ||
+      role.includes('Inspection') ||
+      role.includes('Vendor')
+    ) return 'vendor';
+    return 'home';
+  };
+
   const saveVisitorProfile = (profile) => {
     setVisitorProfile(profile);
     try {
@@ -86,8 +112,7 @@ export function AppProvider({ children }) {
     } catch (e) {
       console.error(e);
     }
-    setCurrentView('home');
-    showToast(`Access granted! Welcome, ${profile.name} (${profile.company}).`);
+    setCurrentView(getVisitorRoute(profile));
   };
 
   const clearVisitorProfile = () => {
@@ -97,6 +122,7 @@ export function AppProvider({ children }) {
     } catch (e) {
       console.error(e);
     }
+    setCurrentView('home');
     showToast('Visitor session reset. Please re-enter basic details.');
   };
 
@@ -141,7 +167,6 @@ export function AppProvider({ children }) {
     // Route to their portal
     const viewMap = { customer: 'customer', supplier: 'vendor', staff: 'staff', admin: 'admin' };
     setCurrentView(viewMap[user.role] || 'home');
-    showToast(`Welcome, ${user.name}!`);
   };
 
   const logout = () => {

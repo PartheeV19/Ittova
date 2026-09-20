@@ -3112,7 +3112,7 @@ tr:hover td {
 }
 
 .gate-header {
-  height: 72px;
+  height: 54px;
   border-bottom: 1px solid var(--line-light);
   background: rgba(255, 255, 255, 0.98);
   display: flex;
@@ -3175,28 +3175,29 @@ tr:hover td {
 .gate-main-container {
   flex: 1;
   display: flex;
-  align-items: center;
-  padding: 48px 0;
+  align-items: flex-start;
+  padding: 20px 0 36px;
   background: linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #edf2f6 100%);
 }
 
 .gate-grid {
   display: grid;
   grid-template-columns: 1.15fr 0.85fr;
-  gap: 56px;
-  align-items: center;
+  gap: 48px;
+  align-items: flex-start;
 }
 
 .gate-intro-col {
   padding-right: 20px;
+  padding-top: 4px;
 }
 
 .gate-title {
-  font-size: clamp(2.3rem, 4.2vw, 3.6rem);
+  font-size: clamp(2rem, 3.8vw, 3.2rem);
   line-height: 1.05;
   letter-spacing: -0.05em;
   color: var(--ink);
-  margin: 12px 0 20px;
+  margin: 0 0 16px;
   font-family: var(--font-heading);
 }
 
@@ -3386,7 +3387,120 @@ tr:hover td {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
+}
+
+/* Vendor Portal Tabs & Workflow Guide */
+.vendor-tabs-bar {
+  display: flex;
+  background: var(--paper-alt);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 5px;
+  gap: 6px;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.vendor-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.65rem 1.15rem;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-xs);
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.vendor-tab-btn:hover {
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.vendor-tab-btn.active {
+  background: #ffffff;
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--line);
+}
+
+.vendor-tab-badge {
+  background: var(--line);
+  color: var(--ink);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.vendor-tab-btn.active .vendor-tab-badge {
+  background: var(--red-pale);
+  color: var(--red);
+}
+
+/* Vendor Stepper Explainer */
+.vendor-flow-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.vendor-flow-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 1rem;
+}
+
+.vendor-flow-step {
+  padding: 12px;
+  background: var(--paper);
+  border-radius: var(--r-xs);
+  border-left: 3px solid var(--line);
+  transition: all 0.2s ease;
+}
+
+.vendor-flow-step.active {
+  border-left-color: var(--red);
+  background: #fffafa;
+}
+
+.vendor-flow-step-num {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.vendor-flow-step-title {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+
+.vendor-flow-step-desc {
+  font-size: 0.76rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+@media (max-width: 960px) {
+  .vendor-flow-steps {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 960px) {

@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     port: 3000,
     open: false,
-    host: true
+    host: true,
+    allowedHosts: ['cubical-perky-atom.ngrok-free.dev']
   }
 });

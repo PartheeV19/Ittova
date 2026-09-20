@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 
 const ROLE_TABS = [
@@ -27,15 +27,25 @@ const ROLE_TABS = [
 ];
 
 export default function LoginScreen() {
-  const { db, login, showToast, setCurrentView, navigateBack } = useApp();
+  const { db, login, showToast, setCurrentView, navigateBack, currentView } = useApp();
   const [activeTab, setActiveTab] = useState('customer');
   const [customerId, setCustomerId] = useState(db.customers[0]?.id || '');
   const [vendorId, setVendorId] = useState(db.vendors[0]?.id || '');
   const [registerMode, setRegisterMode] = useState(false);
 
+  useEffect(() => {
+    if (currentView === 'vendor') {
+      setActiveTab('vendor');
+    } else {
+      setActiveTab('customer');
+    }
+  }, [currentView]);
+
   // Switch tab resets registerMode
   const handleTabChange = (tabKey) => {
-    setActiveTab(tabKey);
+    const nextTab = tabKey === 'vendor' ? 'vendor' : 'customer';
+    setActiveTab(nextTab);
+    setCurrentView(nextTab);
     setRegisterMode(false);
   };
 
@@ -99,7 +109,7 @@ export default function LoginScreen() {
           </div>
 
           {/* 2 Role Tabs: Customer and Vendor only */}
-          <div className="role-tabs-bar" role="tablist">
+          <div className="role-tabs-bar" role="tablist" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
             {ROLE_TABS.map(tab => (
               <button
                 key={tab.key}

@@ -29,12 +29,15 @@ export default function App() {
     );
   }
 
+  const portalRoutes = ['login', 'customer', 'vendor', 'staff', 'admin'];
+  const isPortalRoute = portalRoutes.includes(currentView);
+
   return (
     <div className="app-root">
       <Navbar />
 
       {/* View Switching */}
-      {currentView === 'login' && !currentUser ? (
+      {!currentUser && isPortalRoute ? (
         <LoginScreen />
       ) : currentView === 'home' || !currentUser ? (
         <Home />

@@ -5,8 +5,9 @@ export default function Home() {
   const { setCurrentView, showToast, resetDatabase, visitorProfile, clearVisitorProfile } = useApp();
 
   const handleLaunchAuth = (tabKey) => {
-    setCurrentView('login');
-    showToast(`Opening ${tabKey === 'vendor' ? 'Vendor' : 'Customer'} Portal.`);
+    const normalizedTab = tabKey === 'supplier' ? 'vendor' : tabKey;
+    const route = normalizedTab === 'customer' || normalizedTab === 'vendor' ? normalizedTab : 'login';
+    setCurrentView(route);
   };
 
   const scrollTo = (id) => {
@@ -16,31 +17,6 @@ export default function Home() {
 
   return (
     <div className="view" style={{ overflowX: 'hidden' }}>
-      {/* ── 0. VISITOR WELCOME RIBBON ───────────────── */}
-      {visitorProfile && (
-        <div className="visitor-welcome-ribbon">
-          <div className="container visitor-welcome-inner">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span className="status-live-dot" />
-              <span>
-                Verified Visitor: <strong>{visitorProfile.name}</strong> &bull; {visitorProfile.company} ({visitorProfile.role})
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <span style={{ fontSize: '0.76rem', color: '#9ab0bf' }}>
-                Cluster: {visitorProfile.location || 'Pan-India'}
-              </span>
-              <button 
-                type="button" 
-                className="visitor-switch-btn"
-                onClick={clearVisitorProfile}
-              >
-                Change Details / Exit Gate &rarr;
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── 1. HERO SECTION WITH HEXAGON CONTROL SCHEMATIC ── */}
       <section id="home" className="hero-industrial">
