@@ -1,7 +1,10 @@
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import { getPool } from './db/pool.js';
+import { attachUser } from './middleware/auth.js';
+import authRoutes from './routes/auth.routes.js';
 
 const app = express();
 const apiPrefix = `/api/${process.env.API_VERSION || 'v1'}`;
@@ -20,6 +23,10 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: '1mb' }));
+app.use(cookieParser());
+app.use(attachUser);
+
+app.use(`${apiPrefix}/auth`, authRoutes);
 
 app.get(`${apiPrefix}/health/live`, (_request, response) => {
   response.json({ status: 'ok' });
