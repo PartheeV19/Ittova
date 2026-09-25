@@ -5,7 +5,6 @@ const ROLE_LABELS = {
   customer: 'Customer Portal',
   supplier: 'Vendor Platform',
   staff:    'Operations Console',
-  admin:    'Executive Governance',
 };
 
 const ROLE_ICONS = {
@@ -23,11 +22,6 @@ const ROLE_ICONS = {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
       <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-  ),
-  admin: (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
     </svg>
   ),
 };

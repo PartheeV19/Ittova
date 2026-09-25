@@ -8,8 +8,10 @@ export default function SupplierPortal() {
     selectedVendorId, 
     setSelectedVendorId, 
     addVendor, 
+    addVendorMachine,
     acceptVendorPO, 
     requestVendorDispatch, 
+    submitVendorQuote,
     setCadModal,
     showToast,
     navigateBack 
@@ -18,6 +20,7 @@ export default function SupplierPortal() {
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'rfqs' | 'machines' | 'audit'
   const [isRegistering, setIsRegistering] = useState(false);
   const [showAddMachine, setShowAddMachine] = useState(false);
+  const [quoteDrafts, setQuoteDrafts] = useState({});
   const [newMachine, setNewMachine] = useState({
     name: '',
     process: 'CNC MILLING',
@@ -63,7 +66,7 @@ export default function SupplierPortal() {
   });
 
   // Open RFQ opportunities in the network
-  const availableRfqs = db.projects;
+  const availableRfqs = db.projects.filter(p => ['PENDING_VENDOR_QUOTES', 'VEND_VAL_QUOTES_ASSIGNED'].includes(p.status));
 
   const handleDemoFill = () => {
     setFormData({
@@ -153,8 +156,7 @@ export default function SupplierPortal() {
         status: 'Idle',
         audit: 'APPROVED'
       };
-      activeVendor.machines = [...(activeVendor.machines || []), machineObj];
-      showToast(`Machine ${newMachine.name} registered and verified!`);
+      addVendorMachine(activeVendor.id, machineObj);
       setShowAddMachine(false);
       setNewMachine({ name: '', process: 'CNC MILLING', size: '', axis: '', materials: '', rate: '' });
     }
@@ -653,11 +655,11 @@ export default function SupplierPortal() {
                         ))}
                       </div>
 
-                      <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.85rem', borderTop: '1px solid var(--line-light)' }}>
+                      <div style={{ marginTop: '1.25rem', paddingTop: '0.85rem', borderTop: '1px solid var(--line-light)' }}>
                         <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
                           Status: <strong>{p.status.replace(/_/g, ' ')}</strong>
                         </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'end', flexWrap: 'wrap', marginTop: '0.75rem' }}>
                           <button 
                             type="button" 
                             className="btn btn-secondary btn-sm"
@@ -666,12 +668,40 @@ export default function SupplierPortal() {
                           >
                             <span>🔍</span> Inspect CAD Drawing
                           </button>
+                          <label style={{ width: '130px' }}>
+                            Bid Value (₹)
+                            <input
+                              type="number"
+                              min="1"
+                              value={quoteDrafts[p.id]?.cost || ''}
+                              onChange={e => setQuoteDrafts(prev => ({ ...prev, [p.id]: { ...prev[p.id], cost: e.target.value } }))}
+                              placeholder="25000"
+                            />
+                          </label>
+                          <label style={{ width: '110px' }}>
+                            Lead Time (days)
+                            <input
+                              type="number"
+                              min="1"
+                              value={quoteDrafts[p.id]?.time || ''}
+                              onChange={e => setQuoteDrafts(prev => ({ ...prev, [p.id]: { ...prev[p.id], time: e.target.value } }))}
+                              placeholder="7"
+                            />
+                          </label>
                           <button 
                             type="button" 
                             className="btn btn-sm"
-                            onClick={() => showToast(`Facility ${activeVendor.name} bid submitted for ${p.id}!`)}
+                            onClick={() => {
+                              const draft = quoteDrafts[p.id] || {};
+                              if (!draft.cost || !draft.time) {
+                                showToast('Enter a bid value and lead time before submitting.');
+                                return;
+                              }
+                              submitVendorQuote(p.id, activeVendor.id, draft);
+                              setQuoteDrafts(prev => ({ ...prev, [p.id]: { ...draft, submitted: true } }));
+                            }}
                           >
-                            Submit / Confirm Bid
+                            {quoteDrafts[p.id]?.submitted ? 'Bid Submitted' : 'Submit Bid'}
                           </button>
                         </div>
                       </div>

@@ -1,86 +1,66 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { INITIAL_DB } from '../data/initialDb';
 
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const navigationType = useNavigationType();
+
   const [db, setDb] = useState(() => {
     try {
       const saved = localStorage.getItem('ITTOX_DB');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (!parsed.vendors || parsed.vendors.length === 0) {
-          parsed.vendors = INITIAL_DB.vendors;
-        }
-        if (!parsed.customers || parsed.customers.length === 0) {
-          parsed.customers = INITIAL_DB.customers;
-        }
-        if (!parsed.projects || parsed.projects.length === 0) {
-          parsed.projects = INITIAL_DB.projects;
-        }
-        return parsed;
+        return {
+          ...INITIAL_DB,
+          ...parsed,
+          customers: parsed.customers?.length ? parsed.customers : INITIAL_DB.customers,
+          vendors: parsed.vendors?.length ? parsed.vendors : INITIAL_DB.vendors,
+          projects: parsed.projects?.length ? parsed.projects : INITIAL_DB.projects,
+          staff: parsed.staff?.length ? parsed.staff : INITIAL_DB.staff
+        };
       }
-      return INITIAL_DB;
+      return JSON.parse(JSON.stringify(INITIAL_DB));
     } catch {
       return INITIAL_DB;
     }
   });
 
-  const [currentView, setCurrentViewState] = useState(() => {
-    if (typeof window !== 'undefined' && window.location.hash) {
-      const hash = window.location.hash.replace(/^#\/?/, '');
-      if (['home', 'login', 'customer', 'vendor', 'supplier', 'staff', 'admin'].includes(hash)) {
-        return hash === 'supplier' ? 'vendor' : hash;
-      }
-    }
-    return 'home';
-  });
+  const currentView = ({ '/': 'home', '/home': 'home', '/login': 'login', '/customer': 'customer', '/vendor': 'vendor', '/supplier': 'vendor', '/staff': 'staff' }[location.pathname] || 'home');
 
-  const setCurrentView = (view, replace = true) => {
+  const setCurrentView = (view, replace = false) => {
     const normalizedView = view === 'supplier' ? 'vendor' : view;
-    setCurrentViewState(normalizedView);
-    if (typeof window !== 'undefined') {
-      const targetHash = '#' + normalizedView;
-      if (window.location.hash !== targetHash) {
-        if (replace) {
-          window.history.replaceState({ view: normalizedView }, '', targetHash);
-        } else {
-          window.history.pushState({ view: normalizedView }, '', targetHash);
-        }
-      }
-    }
+    navigate(`/${normalizedView}`, { replace });
   };
 
   const navigateBack = () => {
-    if (typeof window !== 'undefined') {
-      if (window.history.length > 1 && window.location.hash && window.location.hash !== '#home') {
-        window.history.back();
-      } else {
-        setCurrentView('home');
-      }
+    if (location.key === 'default' || (navigationType === 'POP' && location.pathname === '/home')) {
+      navigate('/home', { replace: true });
+    } else {
+      navigate(-1);
     }
   };
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const initialView = window.location.hash.replace(/^#\/?/, '') || 'home';
-      window.history.replaceState({ view: initialView }, '', '#' + initialView);
-
-      const handlePopState = (e) => {
-        const nextView = e.state?.view || window.location.hash.replace(/^#\/?/, '') || 'home';
-        setCurrentViewState(nextView === 'supplier' ? 'vendor' : nextView);
-      };
-
-      window.addEventListener('popstate', handlePopState);
-      return () => window.removeEventListener('popstate', handlePopState);
-    }
-  }, []);
 
   const [toasts, setToasts] = useState([]);
   const [cadModal, setCadModal] = useState(null);
 
   // Role-based auth
-  const [currentUser, setCurrentUser] = useState(null); // { role, id, name, subRole }
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('ITOVA_SESSION'));
+      return ['customer', 'supplier', 'staff'].includes(saved?.role) ? saved : null;
+    } catch {
+      return null;
+    }
+  }); // { role, id, name, subRole }
+
+  useEffect(() => {
+    if (currentUser) localStorage.setItem('ITOVA_SESSION', JSON.stringify(currentUser));
+    else localStorage.removeItem('ITOVA_SESSION');
+  }, [currentUser]);
 
   // Starting gate visitor intake profile
   const [visitorProfile, setVisitorProfile] = useState(() => {
@@ -130,6 +110,13 @@ export function AppProvider({ children }) {
   const [selectedVendorId, setSelectedVendorId] = useState('');
   const [selectedStaffId, setSelectedStaffId] = useState('');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    if (currentUser.role === 'customer' && currentUser.id) setSelectedCustomerId(currentUser.id);
+    if (currentUser.role === 'supplier' && currentUser.id) setSelectedVendorId(currentUser.id);
+    if (currentUser.role === 'staff' && currentUser.id) setSelectedStaffId(currentUser.id);
+  }, [currentUser]);
 
   // Sync to localStorage
   useEffect(() => {
@@ -432,6 +419,44 @@ export function AppProvider({ children }) {
     showToast(`Production complete for ${pid}! Logistics pickup scheduled.`);
   };
 
+  const submitVendorQuote = (pid, vendorId, quoteDetails = {}) => {
+    const vendor = db.vendors.find(v => v.id === vendorId);
+    if (!vendor) return;
+
+    setDb(prev => ({
+      ...prev,
+      projects: prev.projects.map(project => {
+        if (project.id !== pid) return project;
+        const drawings = project.drawings.map(drawing => ({
+          ...drawing,
+          processes: drawing.processes.map(process => {
+            const quote = {
+              vid: `${vendor.id} (${vendor.name})`,
+              cost: Number(quoteDetails.cost) || 0,
+              time: Number(quoteDetails.time) || 7
+            };
+            return {
+              ...process,
+              quotes: [...(process.quotes || []).filter(item => item.vid !== quote.vid), quote]
+            };
+          })
+        }));
+        return { ...project, drawings };
+      })
+    }));
+    showToast(`Bid submitted by ${vendor.name} for Project ${pid}.`);
+  };
+
+  const addVendorMachine = (vendorId, machine) => {
+    setDb(prev => ({
+      ...prev,
+      vendors: prev.vendors.map(vendor => vendor.id === vendorId
+        ? { ...vendor, machines: [...(vendor.machines || []), machine] }
+        : vendor)
+    }));
+    showToast(`Machine ${machine.name} registered and saved.`);
+  };
+
   // --- Logistics & Inspection ---
   const acceptLogisticsPickup = (pid) => {
     setDb(prev => ({
@@ -537,6 +562,8 @@ export function AppProvider({ children }) {
       approveVendor,
       acceptVendorPO,
       requestVendorDispatch,
+      submitVendorQuote,
+      addVendorMachine,
       acceptLogisticsPickup,
       receiveMaterialWarehouse,
       assignInspector,

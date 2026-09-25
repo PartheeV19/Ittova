@@ -124,6 +124,30 @@ export default function Home() {
                 <span className="hex-node-title">LOGISTICS</span>
               </div>
 
+              {/* Top Vertex: FINANCE */}
+              <div 
+                className="hex-corner-node corner-finance" 
+                onClick={() => scrollTo('network')} 
+                title="Finance Partners - Banks and NBFCs"
+                role="button"
+                tabIndex={0}
+              >
+                <span className="hex-node-sub">BANKS &amp; NBFCs</span>
+                <span className="hex-node-title">FINANCE</span>
+              </div>
+
+              {/* Bottom Vertex: VENDOR */}
+              <div 
+                className="hex-corner-node corner-vendor" 
+                onClick={() => handleLaunchAuth('vendor')} 
+                title="Vendor Gateway - Register a manufacturing facility"
+                role="button"
+                tabIndex={0}
+              >
+                <span className="hex-node-sub">SUPPLIER PORTAL</span>
+                <span className="hex-node-title">VENDOR</span>
+              </div>
+
               {/* Hexagon Center Core: ITOVA */}
               <div 
                 className="hex-core-center" 
@@ -418,13 +442,13 @@ export default function Home() {
 
             <div className="foot-links-col">
               <b>System Control</b>
-              <span style={{ fontSize: '0.84rem', color: '#9ab0bf' }}>www.itova.in</span>
-              <span style={{ fontSize: '0.84rem', color: '#9ab0bf' }}>hello@itova.in</span>
+              <span style={{ fontSize: '0.84rem', color: 'var(--muted)' }}>www.itova.in</span>
+              <span style={{ fontSize: '0.84rem', color: 'var(--muted)' }}>hello@itova.in</span>
               <div style={{ marginTop: '6px' }}>
                 <button 
                   type="button" 
                   onClick={resetDatabase}
-                  style={{ color: '#fca5a5', textDecoration: 'underline' }}
+                  style={{ color: 'var(--red)', textDecoration: 'underline' }}
                 >
                   Reset session database
                 </button>

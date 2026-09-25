@@ -109,7 +109,7 @@ export default function LoginScreen() {
           </div>
 
           {/* 2 Role Tabs: Customer and Vendor only */}
-          <div className="role-tabs-bar" role="tablist" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+          <div className="role-tabs-bar" role="tablist">
             {ROLE_TABS.map(tab => (
               <button
                 key={tab.key}

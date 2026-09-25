@@ -792,6 +792,26 @@ p.subtitle {
   bottom: 18%;
 }
 
+.corner-finance {
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.corner-finance:hover {
+  transform: translateX(-50%) translateY(-3px) scale(1.02);
+}
+
+.corner-vendor {
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+}
+
+.corner-vendor:hover {
+  transform: translateX(-50%) translateY(-3px) scale(1.02);
+}
+
 /* Hexagon Central Core */
 .hex-core-center {
   position: absolute;
@@ -1047,8 +1067,9 @@ p.subtitle {
 
 /* Industrial Footer */
 footer.industrial-footer {
-  background: #0c2235;
-  color: #cfdae2;
+  background: var(--paper-alt);
+  color: var(--ink);
+  border-top: 1px solid var(--line);
   padding: 56px 0 30px;
 }
 
@@ -1067,7 +1088,7 @@ footer.industrial-footer {
   font-size: 1.85rem;
   font-weight: 800;
   letter-spacing: -0.06em;
-  color: #ffffff;
+  color: var(--ink);
   display: flex;
   align-items: center;
 }
@@ -1079,7 +1100,7 @@ footer.industrial-footer {
 .foot-p {
   font-size: 0.88rem;
   line-height: 1.65;
-  color: #9ab0bf;
+  color: var(--muted);
   margin-top: 12px;
 }
 
@@ -1090,7 +1111,7 @@ footer.industrial-footer {
 }
 
 .foot-links-col b {
-  color: #ffffff;
+  color: var(--ink);
   font-size: 0.95rem;
   margin-bottom: 4px;
 }
@@ -1098,7 +1119,7 @@ footer.industrial-footer {
 .foot-links-col button {
   background: none;
   border: none;
-  color: #cfdae2;
+  color: var(--ink-2);
   font-size: 0.84rem;
   cursor: pointer;
   text-align: left;
@@ -1107,15 +1128,15 @@ footer.industrial-footer {
 }
 
 .foot-links-col button:hover {
-  color: #ffffff;
+  color: var(--red);
 }
 
 .fine-print {
-  border-top: 1px solid #1f3d53;
+  border-top: 1px solid var(--line-dark);
   margin-top: 40px;
   padding-top: 22px;
   font-size: 0.76rem;
-  color: #849db0;
+  color: var(--muted);
   display: flex;
   justify-content: space-between;
   gap: 16px;
@@ -2330,7 +2351,7 @@ footer.industrial-footer {
 /* Role Selector Tabs */
 .role-tabs-bar {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   background: var(--paper-alt);
   border-bottom: 1px solid var(--line);
   padding: 6px;
@@ -3512,4 +3533,3 @@ tr:hover td {
     padding-right: 0;
   }
 }
-
