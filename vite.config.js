@@ -7,6 +7,12 @@ export default defineConfig({
     port: 3000,
     open: false,
     host: true,
-    allowedHosts: ['cubical-perky-atom.ngrok-free.dev']
+    allowedHosts: ['cubical-perky-atom.ngrok-free.dev'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true
+      }
+    }
   }
 });
