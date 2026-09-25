@@ -54,10 +54,17 @@ app.use(apiPrefix, (_request, response) => {
 });
 
 app.use((error, _request, response, _next) => {
-  const status = error.statusCode || (error.message === 'Origin is not allowed by CORS.' ? 403 : 500);
-  if (status >= 500) console.error('API request failed:', error.message);
+  const isCorsRejection = error.message === 'Origin is not allowed by CORS.';
+  const hasKnownStatus = typeof error.statusCode === 'number';
+  const status = hasKnownStatus ? error.statusCode : (isCorsRejection ? 403 : 500);
+  // Errors we threw ourselves (with an explicit statusCode) carry safe,
+  // deliberately-written messages -- e.g. "Email verification is not
+  // configured yet." Only genuinely unexpected exceptions (DB errors, bugs)
+  // get masked, since those could otherwise leak internals to the client.
+  const exposeMessage = hasKnownStatus || isCorsRejection;
+  if (!exposeMessage) console.error('API request failed:', error);
   response.status(status).json({
-    error: status >= 500 ? 'Internal server error.' : error.message
+    error: exposeMessage ? error.message : 'Internal server error.'
   });
 });
 

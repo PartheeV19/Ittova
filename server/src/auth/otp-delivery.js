@@ -2,9 +2,17 @@ function unavailable(message) {
   return Object.assign(new Error(message), { statusCode: 503 });
 }
 
+// Requires OTP_DEV_MODE=true *and* NODE_ENV !== 'production' -- either
+// alone is not enough. This only ever stubs the SMS leg; email always
+// goes through Resend for real, so the flow is genuinely testable.
+export function isDevOtpBypassActive(env = process.env) {
+  return env.OTP_DEV_MODE === 'true' && env.NODE_ENV !== 'production';
+}
+
 export function assertDeliveryConfigured({ email, phone }, env = process.env) {
   if (email && (!env.RESEND_API_KEY || !env.OTP_EMAIL_FROM)) throw unavailable('Email verification is not configured yet.');
-  if (phone && (!env.MSG91_AUTH_KEY || !env.MSG91_TEMPLATE_ID)) throw unavailable('SMS verification is not configured yet.');
+  const smsBypassed = isDevOtpBypassActive(env);
+  if (phone && !smsBypassed && (!env.MSG91_AUTH_KEY || !env.MSG91_TEMPLATE_ID)) throw unavailable('SMS verification is not configured yet.');
 }
 
 // Acceptance by a provider does not confirm inbox or handset delivery.
@@ -27,6 +35,12 @@ export async function deliverOtp({ email, phone, code, id }, { env = process.env
     return email;
   })());
   if (phone) requests.push((async () => {
+    if (isDevOtpBypassActive(env) && (!env.MSG91_AUTH_KEY || !env.MSG91_TEMPLATE_ID)) {
+      // Dev-only stub: no real SMS provider hit. Never reachable when
+      // NODE_ENV=production, regardless of OTP_DEV_MODE's value.
+      console.log(`[otp-dev-bypass] SMS not configured -- code for ${phone}: ${code}`);
+      return phone;
+    }
     const response = await fetchImpl('https://control.msg91.com/api/v5/flow', {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
       headers: { authkey: env.MSG91_AUTH_KEY, 'Content-Type': 'application/json', accept: 'application/json' },
