@@ -18,3 +18,7 @@ The Vite development server proxies `/api/*` requests to the API at `http://loca
 - `GET /api/v1/health/ready` checks the PostgreSQL connection and returns `503` until the database is reachable.
 
 The first migration establishes account, customer, vendor, staff, project, machine, quote, document-metadata, and project-event tables. Document files themselves will live in object storage; PostgreSQL stores their metadata and storage keys.
+
+## OTP delivery
+
+See [OTP_SETUP.md](./OTP_SETUP.md) for Resend email, MSG91 SMS, environment configuration, and verification.

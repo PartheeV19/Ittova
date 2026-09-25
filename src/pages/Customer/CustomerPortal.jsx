@@ -31,10 +31,10 @@ export default function CustomerPortal() {
     submitDrawings(activeCustomer.id, searchRadius);
   };
 
-  const handleQuoteSelect = (dIdx, pIdx, vid) => {
+  const handleQuoteSelect = (pid, dIdx, pIdx, vid) => {
     setQuoteSelections(prev => ({
       ...prev,
-      [`${dIdx}_${pIdx}`]: vid
+      [pid]: { ...prev[pid], [`${dIdx}_${pIdx}`]: vid }
     }));
   };
 
@@ -42,16 +42,16 @@ export default function CustomerPortal() {
     let allSelected = true;
     drawings.forEach((d, dIdx) => d.processes.forEach((proc, pIdx) => {
       const key = `${dIdx}_${pIdx}`;
-      if (!quoteSelections[key] && !proc.selectedVendor) {
+      if (!quoteSelections[pid]?.[key] && !proc.selectedVendor) {
         allSelected = false;
       }
     }));
 
     if (!allSelected) {
-      alert('Please select a supplier quote for every process stage!');
+      showToast('Please select a supplier quote for every process stage!');
       return;
     }
-    confirmCustomerVendorQuotes(pid, quoteSelections);
+    confirmCustomerVendorQuotes(pid, quoteSelections[pid] || {});
   };
 
   return (
@@ -296,8 +296,8 @@ export default function CustomerPortal() {
                           </div>
                           <select 
                             style={{ marginTop: '0.4rem' }}
-                            value={quoteSelections[`${dIdx}_${pIdx}`] || proc.selectedVendor || ''}
-                            onChange={e => handleQuoteSelect(dIdx, pIdx, e.target.value)}
+                            value={quoteSelections[p.id]?.[`${dIdx}_${pIdx}`] || proc.selectedVendor || ''}
+                            onChange={e => handleQuoteSelect(p.id, dIdx, pIdx, e.target.value)}
                           >
                             <option value="">Select Supplier Bid...</option>
                             {proc.quotes.map(q => (

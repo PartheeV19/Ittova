@@ -3222,7 +3222,7 @@ tr:hover td {
   font-family: var(--font-heading);
 }
 
-.gate-title span {
+.gate-title .brand-accent-o {
   color: var(--red);
 }
 
@@ -3533,3 +3533,35 @@ tr:hover td {
     padding-right: 0;
   }
 }
+
+/* Frontend accessibility and narrow-screen corrections. */
+:focus-visible:not(.hex-corner-node):not(.hex-core-center) { outline: 3px solid var(--red); outline-offset: 3px; }
+button:disabled { opacity: .6; cursor: wait; }
+button.nav-brand-section { background: transparent; border: 0; text-align: left; }
+.auth-page { padding: 2rem 1rem 4rem; }
+.auth-page .auth-terminal-card { max-width: 540px; margin: 2rem auto; }
+.auth-page .terminal-header, .auth-page .terminal-form-body { padding: 1.5rem; }
+.auth-page h1 { font-size: 1.6rem; }
+.auth-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.auth-fields .btn-auth-primary { width: 100%; margin-top: 1rem; }
+#toast-container { max-width: calc(100vw - 48px); overflow-wrap: anywhere; }
+.viewer-box { max-height: 90dvh; overflow-y: auto; }
+@media (max-width: 768px) {
+  .enterprise-navbar { flex-wrap: wrap; gap: 12px; padding: 12px 16px; }
+  .nav-center-menu { display: flex; order: 3; width: 100%; overflow-x: auto; justify-content: flex-start; }
+  .nav-item-link { flex-shrink: 0; }
+  .nav-actions { flex-wrap: wrap; min-width: 0; }
+  .visitor-badge-pill { max-width: 100%; flex-wrap: wrap; }
+  .portal-header, .flex-between { flex-wrap: wrap; gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-page *, .cad-dialog * { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+.cad-dialog { border: 1px solid var(--line); width: min(900px, calc(100vw - 32px)); margin: auto; color: var(--ink); }
+.cad-dialog::backdrop { background: rgba(16, 42, 67, .65); }
+
+.gate-otp-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.gate-otp-boxes { display: flex; gap: 6px; }
+.gate-otp-boxes input { width: clamp(30px, 7vw, 40px); min-width: 0; height: 44px; padding: 0; text-align: center; font-size: 1.1rem; font-weight: 700; }
+.gate-otp-row .btn { white-space: nowrap; }

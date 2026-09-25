@@ -44,7 +44,7 @@ export function AppProvider({ children }) {
   const [db, setDb] = useState({ customers: [], vendors: [], projects: [], staff: [] });
   const [dbLoading, setDbLoading] = useState(false);
 
-  const currentView = ({ '/': 'home', '/home': 'home', '/login': 'login', '/customer': 'customer', '/vendor': 'vendor', '/supplier': 'vendor', '/staff': 'staff' }[location.pathname] || 'home');
+  const currentView = ({ '/': 'home', '/home': 'home', '/login': 'login', '/customer': 'customer', '/vendor': 'vendor', '/supplier': 'vendor', '/staff': 'staff', '/admin': 'admin' }[location.pathname] || 'home');
 
   const setCurrentView = (view, replace = false) => {
     const normalizedView = view === 'supplier' ? 'vendor' : view;
@@ -182,19 +182,6 @@ export function AppProvider({ children }) {
     }
   });
 
-  const getVisitorRoute = (profile) => {
-    const role = profile?.role || '';
-    if (role.includes('Buyer') || role.includes('OEM')) return 'customer';
-    if (
-      role.includes('Manufacturing') ||
-      role.includes('Machine Shop') ||
-      role.includes('Raw Material') ||
-      role.includes('Inspection') ||
-      role.includes('Vendor')
-    ) return 'vendor';
-    return 'home';
-  };
-
   const saveVisitorProfile = (profile) => {
     setVisitorProfile(profile);
     try {
@@ -202,7 +189,7 @@ export function AppProvider({ children }) {
     } catch (e) {
       console.error(e);
     }
-    setCurrentView(getVisitorRoute(profile));
+    setCurrentView('home', true);
   };
 
   const clearVisitorProfile = () => {
@@ -228,11 +215,25 @@ export function AppProvider({ children }) {
   const requestOtp = (contact, purpose = 'signup') =>
     runAction(() => apiFetch('/auth/otp/request', { method: 'POST', body: { contact, purpose } }));
 
-  const verifyOtp = (contact, code, role) =>
+  // One shared challenge, delivered to both destinations. Do not issue two
+  // independent OTP requests: those would generate different codes.
+  const requestSharedOtp = (email, phone) => runAction(async () => {
+    const result = await apiFetch('/auth/otp/request', {
+      method: 'POST',
+      body: { contact: email, email, phone, purpose: 'signup', deliveryChannels: ['email', 'sms'] }
+    });
+    if (!result?.acceptedTo?.includes(email) || !result?.acceptedTo?.includes(phone)) {
+      throw new Error('Email and SMS delivery is not configured yet. Please try again once both delivery services are enabled.');
+    }
+    return result;
+  });
+
+  const verifyOtp = (contact, code, role, { onVerified, purpose = 'signup' } = {}) =>
     runAction(async () => {
-      const session = await apiFetch('/auth/otp/verify', { method: 'POST', body: { contact, code, role } });
+      const session = await apiFetch('/auth/otp/verify', { method: 'POST', body: { contact, code, role, purpose } });
+      if (onVerified) onVerified();
       const user = await applySession(session);
-      setCurrentView(role === 'supplier' ? 'vendor' : role);
+      setCurrentView('home', true);
       return user;
     }, 'Invalid or expired code.');
 
@@ -240,7 +241,7 @@ export function AppProvider({ children }) {
     runAction(async () => {
       const session = await apiFetch('/auth/login', { method: 'POST', body: { email, password } });
       const user = await applySession(session);
-      setCurrentView(user.role === 'admin' ? 'admin' : 'staff');
+      setCurrentView('home', true);
       return user;
     }, 'Invalid credentials.');
 
@@ -253,8 +254,7 @@ export function AppProvider({ children }) {
     if (user.role === 'supplier' && user.id) setSelectedVendorId(user.id);
     if (user.role === 'staff' && user.id) setSelectedStaffId(user.id);
     if (user.role === 'admin') setIsAdminLoggedIn(true);
-    const viewMap = { customer: 'customer', supplier: 'vendor', staff: 'staff', admin: 'admin' };
-    setCurrentView(viewMap[user.role] || 'home');
+    setCurrentView('home', true);
   };
 
   const logout = () => {
@@ -512,6 +512,7 @@ export function AppProvider({ children }) {
       login,
       logout,
       requestOtp,
+      requestSharedOtp,
       verifyOtp,
       passwordLogin,
       currentView,

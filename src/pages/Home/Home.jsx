@@ -450,7 +450,7 @@ export default function Home() {
                   onClick={resetDatabase}
                   style={{ color: 'var(--red)', textDecoration: 'underline' }}
                 >
-                  Reset session database
+                  Refresh workspace data
                 </button>
               </div>
             </div>

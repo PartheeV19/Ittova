@@ -1,59 +1,76 @@
-import { randomInt, createHash } from 'node:crypto';
+import { randomInt, createHmac, timingSafeEqual } from 'node:crypto';
 import { getPool } from '../db/pool.js';
 
-const OTP_TTL_MS = 1000 * 60 * 10; // 10 minutes
-const MAX_ATTEMPTS = 5;
-
 function hashCode(code) {
-  return createHash('sha256').update(code).digest('hex');
+  if (!process.env.OTP_HASH_SECRET || process.env.OTP_HASH_SECRET.length < 32) {
+    throw Object.assign(new Error('OTP verification is not configured yet.'), { statusCode: 503 });
+  }
+  return createHmac('sha256', process.env.OTP_HASH_SECRET).update(code).digest('hex');
 }
 
-// Generates and stores a 6-digit code. Returns the raw code so the caller
-// can send it via email/SMS -- swap the console.log in the route for a
-// real provider (SES, Twilio, etc.) when you're ready; nothing else changes.
-export async function issueOtp(contact, purpose = 'signup') {
-  const code = String(randomInt(100000, 999999));
-  const expiresAt = new Date(Date.now() + OTP_TTL_MS);
-
-  await getPool().query(
-    `INSERT INTO otp_codes (contact, code_hash, purpose, expires_at)
-     VALUES ($1, $2, $3, $4)`,
-    [contact.trim().toLowerCase(), hashCode(code), purpose, expiresAt]
-  );
-
-  return code;
+export async function issueOtp(contact, purpose = 'signup', destinations = [contact]) {
+  const code = String(randomInt(100000, 1000000));
+  const digest = hashCode(code);
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    // Sorted destination locks serialize overlapping requests across API workers.
+    for (const destination of [...new Set(destinations)].sort()) {
+      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [destination]);
+      const recent = await client.query(
+        `SELECT COUNT(*)::int AS total, MAX(created_at) > now() - interval '60 seconds' AS cooling_down
+         FROM otp_codes WHERE $1 = ANY(destinations) AND created_at > now() - interval '1 hour'`, [destination]);
+      if (recent.rows[0].cooling_down || recent.rows[0].total >= 5) {
+        throw Object.assign(new Error('Too many OTP requests. Please wait before trying again.'), { statusCode: 429 });
+      }
+    }
+    await client.query('UPDATE otp_codes SET consumed_at = now() WHERE lower(contact) = $1 AND consumed_at IS NULL', [contact]);
+    const result = await client.query(
+      `INSERT INTO otp_codes (contact, code_hash, purpose, expires_at, destinations)
+       VALUES ($1, $2, $3, now() + interval '10 minutes', $4) RETURNING id`,
+      [contact, digest, purpose, destinations]);
+    await client.query('COMMIT');
+    return { id: result.rows[0].id, code };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally { client.release(); }
 }
 
-// Returns true/false. Consumes the code (or burns an attempt) either way,
-// so a code can't be replayed and can't be brute-forced past MAX_ATTEMPTS.
+export async function acceptOtpDelivery(id) {
+  const result = await getPool().query(
+    'UPDATE otp_codes SET delivery_accepted_at = now() WHERE id = $1 AND consumed_at IS NULL RETURNING id', [id]);
+  if (!result.rowCount) throw Object.assign(new Error('This code was superseded. Request a new code.'), { statusCode: 409 });
+}
+
+export async function revokeOtp(id) {
+  await getPool().query('UPDATE otp_codes SET consumed_at = now() WHERE id = $1', [id]);
+}
+
 export async function verifyOtp(contact, code, purpose = 'signup') {
-  const pool = getPool();
-  const normalizedContact = contact.trim().toLowerCase();
-
-  const result = await pool.query(
-    `SELECT id, code_hash, attempt_count
-     FROM otp_codes
-     WHERE lower(contact) = $1 AND purpose = $2 AND consumed_at IS NULL AND expires_at > now()
-     ORDER BY created_at DESC
-     LIMIT 1`,
-    [normalizedContact, purpose]
-  );
-
-  if (result.rowCount === 0) return false;
-  const row = result.rows[0];
-
-  if (row.attempt_count >= MAX_ATTEMPTS) {
-    await pool.query(`UPDATE otp_codes SET consumed_at = now() WHERE id = $1`, [row.id]);
-    return false;
-  }
-
-  const matches = row.code_hash === hashCode(String(code));
-
-  if (!matches) {
-    await pool.query(`UPDATE otp_codes SET attempt_count = attempt_count + 1 WHERE id = $1`, [row.id]);
-    return false;
-  }
-
-  await pool.query(`UPDATE otp_codes SET consumed_at = now() WHERE id = $1`, [row.id]);
-  return true;
+  const digest = hashCode(code);
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `SELECT id, code_hash, attempt_count FROM otp_codes
+       WHERE lower(contact) = $1 AND purpose = $2 AND consumed_at IS NULL
+         AND expires_at > now() AND delivery_accepted_at IS NOT NULL
+       ORDER BY created_at DESC LIMIT 1 FOR UPDATE`, [contact, purpose]);
+    const row = result.rows[0];
+    let matches = false;
+    if (row) {
+      const stored = Buffer.from(row.code_hash, 'hex');
+      const provided = Buffer.from(digest, 'hex');
+      matches = row.attempt_count < 5 && stored.length === provided.length && timingSafeEqual(stored, provided);
+      await client.query(
+        `UPDATE otp_codes SET attempt_count = attempt_count + 1,
+         consumed_at = CASE WHEN $2 OR attempt_count >= 4 THEN now() ELSE consumed_at END WHERE id = $1`, [row.id, matches]);
+    }
+    await client.query('COMMIT');
+    return matches;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally { client.release(); }
 }

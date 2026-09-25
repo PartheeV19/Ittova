@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+
+import { useApp } from '../../context/AppContext';
 
 export default function StartingGate({ onComplete }) {
   const [formData, setFormData] = useState({
@@ -6,43 +8,98 @@ export default function StartingGate({ onComplete }) {
     email: '',
     company: '',
     phone: '',
-    role: 'Industrial Buyer / OEM',
-    location: '',
-    purpose: ''
+    role: 'Industrial Buyer / OEM'
   });
 
+  const { requestSharedOtp, verifyOtp } = useApp();
+  const [sentTo, setSentTo] = useState('');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
+  const otpInputs = useRef([]);
+  const codeComplete = /^[0-9]{6}$/.test(code);
+  const enterDigits = (index, value) => {
+    const digits = value.replace(/[^0-9]/g, '');
+    const next = code.padEnd(6, ' ').split('');
+    if (!digits) next[index] = ' ';
+    else digits.slice(0, 6 - index).split('').forEach((digit, offset) => { next[index + offset] = digit; });
+    setCode(next.join(''));
+    setOtpError('');
+    if (digits) otpInputs.current[Math.min(index + digits.length, 5)]?.focus();
+  };
+  const [otpError, setOtpError] = useState('');
+  const [resendAt, setResendAt] = useState(0);
+  const resetOtp = () => { setSentTo(''); setCode(''); setOtpError(''); };
   const [errors, setErrors] = useState({});
 
   const updateField = (field, value) => {
+    if (['email', 'phone', 'role'].includes(field)) resetOtp();
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: null }));
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (pending.current) return;
     const newErrors = {};
 
     if (!formData.name.trim()) newErrors.name = 'Full name is required';
     if (!formData.email.trim()) {
       newErrors.email = 'Official email is required';
-    } else if (!formData.email.includes('@')) {
+    } else if (! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       newErrors.email = 'Please enter a valid email address';
     }
     if (!formData.company.trim()) newErrors.company = 'Company / Organization is required';
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+    else if (!/^\+[1-9][0-9]{7,14}$/.test(formData.phone.replace(/[\s().-]/g, ''))) newErrors.phone = 'Include your country code, for example +919876543210';
     if (!formData.role.trim()) newErrors.role = 'Participant role is required';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      document.getElementById(`gate-${Object.keys(newErrors)[0]}`)?.focus();
       return;
     }
 
-    onComplete({
-      ...formData,
-      verifiedAt: new Date().toISOString()
-    });
+    const role = formData.role.includes('Buyer') ? 'customer'
+      : /Manufacturing|Raw Material/.test(formData.role) ? 'supplier' : null;
+    if (!role) {
+      setOtpError('OTP access is currently available for customers and vendors. Please select the relevant participant role.');
+      return;
+    }
+    const email = formData.email.trim().toLowerCase();
+    const phone = formData.phone.replace(/[\s().-]/g, '');
+    if (codeComplete && !sentTo) {
+      setOtpError('Request an OTP before submitting a code.');
+      return;
+    }
+    if (!codeComplete && Date.now() < resendAt) {
+      setOtpError('Please wait a minute before requesting another code.');
+      return;
+    }
+    pending.current = true;
+    setBusy(true);
+    setOtpError('');
+    try {
+      if (!codeComplete) {
+        const result = await requestSharedOtp(email, phone);
+        if (!result) { setOtpError('Could not request a code. Please try again.'); return; }
+        setSentTo({ email, phone });
+        setCode('');
+        setResendAt(Date.now() + 60000);
+      } else {
+        const result = await verifyOtp(sentTo.email, code, role, { onVerified: () => onComplete({
+          ...formData,
+          verifiedContact: sentTo.email,
+          otpDestinations: sentTo,
+          verificationMethod: 'shared-otp',
+          verifiedAt: new Date().toISOString()
+        }) });
+        if (!result) setOtpError('Verification failed. Check the code or request a new one.');
+      }
+    } finally { pending.current = false; setBusy(false); }
+
   };
 
   return (
@@ -66,7 +123,7 @@ export default function StartingGate({ onComplete }) {
           {/* Left Column: Context & Industrial Credentials */}
           <div className="gate-intro-col">
             <h1 className="gate-title" style={{ marginTop: 0, fontSize: '2rem' }}>
-              Welcome to <span>ITOVA</span>
+              Welcome to IT<span className="brand-accent-o">O</span>VA
             </h1>
             <p className="gate-description">
               ITOVA provides an accountable, traceable execution layer connecting engineering buyers, 
@@ -125,19 +182,24 @@ export default function StartingGate({ onComplete }) {
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="gate-form-body">
+              <form onSubmit={handleSubmit} className="gate-form-body" aria-busy={busy}>
+                <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
                 <div className="form-group-block">
                   <label htmlFor="gate-name">
                     Full Name <span className="text-red">*</span>
                   </label>
                   <input
                     id="gate-name"
+                    autoComplete="name"
+                    aria-required="true"
+                    aria-invalid={Boolean(errors.name)}
+                    aria-describedby={errors.name ? "gate-name-error" : undefined}
                     type="text"
                     value={formData.name}
                     onChange={e => updateField('name', e.target.value)}
                     className={errors.name ? 'input-error' : ''}
                   />
-                  {errors.name && <span className="field-error-msg">{errors.name}</span>}
+                  {errors.name && <span id="gate-name-error" role="alert" className="field-error-msg">{errors.name}</span>}
                 </div>
 
                 <div className="grid-2" style={{ gap: '12px' }}>
@@ -147,12 +209,16 @@ export default function StartingGate({ onComplete }) {
                     </label>
                     <input
                       id="gate-email"
+                    autoComplete="email"
+                    aria-required="true"
+                    aria-invalid={Boolean(errors.email)}
+                    aria-describedby={errors.email ? "gate-email-error" : undefined}
                       type="email"
                       value={formData.email}
                       onChange={e => updateField('email', e.target.value)}
                       className={errors.email ? 'input-error' : ''}
                     />
-                    {errors.email && <span className="field-error-msg">{errors.email}</span>}
+                    {errors.email && <span id="gate-email-error" role="alert" className="field-error-msg">{errors.email}</span>}
                   </div>
 
                   <div className="form-group-block">
@@ -161,12 +227,17 @@ export default function StartingGate({ onComplete }) {
                     </label>
                     <input
                       id="gate-phone"
+                      placeholder="+91 98765 43210"
+                    autoComplete="tel"
+                    aria-required="true"
+                    aria-invalid={Boolean(errors.phone)}
+                    aria-describedby={errors.phone ? "gate-phone-error" : undefined}
                       type="text"
                       value={formData.phone}
                       onChange={e => updateField('phone', e.target.value)}
                       className={errors.phone ? 'input-error' : ''}
                     />
-                    {errors.phone && <span className="field-error-msg">{errors.phone}</span>}
+                    {errors.phone && <span id="gate-phone-error" role="alert" className="field-error-msg">{errors.phone}</span>}
                   </div>
                 </div>
 
@@ -176,12 +247,16 @@ export default function StartingGate({ onComplete }) {
                   </label>
                   <input
                     id="gate-company"
+                    autoComplete="organization"
+                    aria-required="true"
+                    aria-invalid={Boolean(errors.company)}
+                    aria-describedby={errors.company ? "gate-company-error" : undefined}
                     type="text"
                     value={formData.company}
                     onChange={e => updateField('company', e.target.value)}
                     className={errors.company ? 'input-error' : ''}
                   />
-                  {errors.company && <span className="field-error-msg">{errors.company}</span>}
+                  {errors.company && <span id="gate-company-error" role="alert" className="field-error-msg">{errors.company}</span>}
                 </div>
 
                 <div className="form-group-block">
@@ -201,35 +276,40 @@ export default function StartingGate({ onComplete }) {
                   </select>
                 </div>
 
-                <div className="grid-2" style={{ gap: '12px' }}>
-                  <div className="form-group-block">
-                    <label htmlFor="gate-location">Location / Cluster</label>
-                    <input
-                      id="gate-location"
-                      type="text"
-                      value={formData.location}
-                      onChange={e => updateField('location', e.target.value)}
-                    />
+                <div className="gate-otp-row">
+                  <div className="gate-otp-boxes" role="group" aria-label="One-time password">
+                    {Array.from({ length: 6 }, (_, index) => (
+                      <input
+                        key={index}
+                        ref={element => { otpInputs.current[index] = element; }}
+                        aria-label={`OTP digit ${index + 1}`}
+                        aria-invalid={Boolean(otpError)}
+                        aria-describedby={otpError ? 'gate-otp-error' : undefined}
+                        inputMode="numeric"
+                        autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                        value={code[index]?.trim() || ''}
+                        onFocus={e => e.target.select()}
+                        onChange={e => enterDigits(index, e.target.value)}
+                        onPaste={e => { e.preventDefault(); enterDigits(index, e.clipboardData.getData('text')); }}
+                        onKeyDown={e => {
+                          if (e.key === 'Backspace' && !code[index]?.trim() && index > 0) {
+                            e.preventDefault(); enterDigits(index - 1, ''); otpInputs.current[index - 1]?.focus();
+                          } else if (e.key === 'ArrowLeft' && index > 0) {
+                            e.preventDefault(); otpInputs.current[index - 1]?.focus();
+                          } else if (e.key === 'ArrowRight' && index < 5) {
+                            e.preventDefault(); otpInputs.current[index + 1]?.focus();
+                          }
+                        }}
+                      />
+                    ))}
                   </div>
-
-                  <div className="form-group-block">
-                    <label htmlFor="gate-purpose">Primary Focus</label>
-                    <input
-                      id="gate-purpose"
-                      type="text"
-                      value={formData.purpose}
-                      onChange={e => updateField('purpose', e.target.value)}
-                    />
-                  </div>
+                  <button type="submit" className="btn btn-dark btn-sm" disabled={busy}>
+                    {busy ? 'Please wait...' : codeComplete ? 'Submit OTP' : 'Get OTP'}
+                  </button>
                 </div>
-
-                <button 
-                  type="submit" 
-                  className="btn btn-dark w-full"
-                  style={{ width: '100%', marginTop: '16px', minHeight: '48px', fontSize: '0.94rem' }}
-                >
-                  Continue &rarr;
-                </button>
+                <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '8px 0 0' }}>You will receive the OTP on your phone and email.</p>
+                {otpError && <p id="gate-otp-error" role="alert" className="field-error-msg">{otpError}</p>}
+                </fieldset>
               </form>
             </div>
           </div>

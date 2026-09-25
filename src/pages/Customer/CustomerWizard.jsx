@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 
 export default function CustomerWizard({ onComplete, onCancel }) {
   const { addCustomer, showToast } = useApp();
+  const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
   const [attachedDocs, setAttachedDocs] = useState(new Set());
 
@@ -148,7 +149,7 @@ export default function CustomerWizard({ onComplete, onCancel }) {
 
   const handleNext = () => {
     if (step === 1 && !formData.name.trim()) {
-      alert('Please enter Company Legal Name before proceeding.');
+      showToast('Please enter Company Legal Name before proceeding.');
       return;
     }
     if (step < 6) setStep(step + 1);
@@ -158,22 +159,25 @@ export default function CustomerWizard({ onComplete, onCancel }) {
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
+    if (submitting) return;
     e.preventDefault();
     if (!formData.name.trim()) {
-      alert('Company Legal Name is required!');
+      showToast('Company Legal Name is required!');
       setStep(1);
       return;
     }
 
-    const cid = addCustomer({
+    setSubmitting(true);
+    const cid = await addCustomer({
       ...formData,
-      phone: formData.signatoryPhone || formData.procPhone || '+91 98490 12345',
-      email: formData.procEmail || formData.signatoryEmail || 'procurement@company.com',
+      phone: formData.signatoryPhone || formData.procPhone || '',
+      email: formData.procEmail || formData.signatoryEmail || '',
       attachedDocs: Array.from(attachedDocs)
     });
 
-    if (onComplete) onComplete(cid);
+    setSubmitting(false);
+    if (cid && onComplete) onComplete(cid);
   };
 
   const isCashTier = formData.reqCreditTier.includes('Cash');
@@ -868,6 +872,8 @@ export default function CustomerWizard({ onComplete, onCancel }) {
               type="button" 
               className="btn btn-sm" 
               onClick={handleSubmit}
+              disabled={submitting}
+              aria-busy={submitting}
               style={{ background: 'var(--success)', borderColor: 'var(--success)', color: '#fff' }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>

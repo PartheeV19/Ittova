@@ -1,55 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function AdminPortal() {
-  const { db, isAdminLoggedIn, setIsAdminLoggedIn, payVendor, showToast, logout } = useApp();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (username === 'DDD' && password === '123') {
-      setIsAdminLoggedIn(true);
-      showToast('Admin Central authenticated successfully.');
-    } else {
-      alert('Invalid admin credentials! Use User: DDD, Pass: 123');
-    }
-  };
+  const { db, isAdminLoggedIn, payVendor, showToast, logout } = useApp();
 
   const pendingPayouts = db.projects.filter(p => p.status === 'DISPATCHED_TO_CUST' && p.vendorPaymentStatus !== 'PAID');
 
   return (
     <div className="view">
       {!isAdminLoggedIn ? (
-        <div className="card" style={{ maxWidth: '450px', margin: '3rem auto' }}>
-          <div className="kicker">Restricted Access</div>
-          <h2 style={{ marginBottom: '0.5rem' }}>Admin Central Authentication</h2>
-          <p className="subtitle">Enter platform administration credentials to manage vendor payouts and ecosystem health.</p>
-
-          <form onSubmit={handleLogin} style={{ marginTop: '1.5rem' }}>
-            <div style={{ marginBottom: '1rem' }}>
-              <label>Admin Username</label>
-              <input 
-                type="text" 
-                value={username} 
-                onChange={e => setUsername(e.target.value)} 
-                placeholder="DDD" 
-              />
-            </div>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label>Admin Security Passcode</label>
-              <input 
-                type="password" 
-                value={password} 
-                onChange={e => setPassword(e.target.value)} 
-                placeholder="123" 
-              />
-            </div>
-            <button type="submit" className="btn w-full">
-              Authenticate Admin Session
-            </button>
-          </form>
-        </div>
+        <p role="alert">Sign in with an administrator account to access this workspace.</p>
       ) : (
         <div>
           <div className="card">

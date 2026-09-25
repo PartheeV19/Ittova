@@ -49,18 +49,11 @@ export default function SupplierPortal() {
     m2_rate: ''
   });
 
-  // Automatically select first vendor if none selected
-  useEffect(() => {
-    if (!selectedVendorId && db.vendors.length > 0) {
-      setSelectedVendorId(db.vendors[0].id);
-    }
-  }, [selectedVendorId, db.vendors, setSelectedVendorId]);
-
-  const activeVendor = db.vendors.find(v => v.id === selectedVendorId) || db.vendors[0];
+  const activeVendor = db.vendors.find(v => v.id === selectedVendorId);
 
   // Active production work orders assigned to this facility
   const activeOrders = db.projects.filter(p => {
-    return p.drawings?.some(d => 
+    return Boolean(activeVendor) && p.drawings?.some(d =>
       d.processes?.some(proc => proc.selectedVendor && proc.selectedVendor.includes(activeVendor?.id || selectedVendorId))
     );
   });
@@ -90,10 +83,10 @@ export default function SupplierPortal() {
     showToast('Demo supplier facility loaded!');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      alert('Please enter facility name!');
+      showToast('Please enter facility name!');
       return;
     }
 
@@ -125,7 +118,7 @@ export default function SupplierPortal() {
       });
     }
 
-    const vid = addVendor({
+    const vid = await addVendor({
       name: formData.name,
       location: formData.location,
       phone: formData.phone,
@@ -133,14 +126,15 @@ export default function SupplierPortal() {
       machines: machines
     });
 
+    if (!vid) return;
     setIsRegistering(false);
     setSelectedVendorId(vid);
   };
 
-  const handleAddMachineSubmit = (e) => {
+  const handleAddMachineSubmit = async (e) => {
     e.preventDefault();
     if (!newMachine.name.trim()) {
-      alert('Please enter machine name!');
+      showToast('Please enter machine name!');
       return;
     }
 
@@ -156,7 +150,8 @@ export default function SupplierPortal() {
         status: 'Idle',
         audit: 'APPROVED'
       };
-      addVendorMachine(activeVendor.id, machineObj);
+      const result = await addVendorMachine(activeVendor.id, machineObj);
+      if (result === null) return;
       setShowAddMachine(false);
       setNewMachine({ name: '', process: 'CNC MILLING', size: '', axis: '', materials: '', rate: '' });
     }

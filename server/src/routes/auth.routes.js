@@ -1,64 +1,46 @@
 import { Router } from 'express';
 import { getPool } from '../db/pool.js';
-import { issueOtp, verifyOtp } from '../auth/otp.js';
+import { verifyOtp } from '../auth/otp.js';
+import { requestOtpDelivery } from '../auth/otp-service.js';
+import { parseOtpRequest } from '../auth/otp-input.js';
+import { otpRequestLimiter } from '../auth/otp-rate-limit.js';
 import { verifyPassword } from '../auth/password.js';
 import { createSession, revokeSession, sessionCookieOptions, SESSION_COOKIE_NAME } from '../auth/session.js';
 
 const router = Router();
 
-// --- Tier 0: soft gate (customer / vendor) -------------------------------
-// No password. This exists to filter bots and randoms, not to restrict
-// legitimate customers/vendors -- see the auth design note in server/README.md.
-
-router.post('/otp/request', async (request, response) => {
-  const { contact, purpose = 'signup' } = request.body || {};
-  if (!contact || typeof contact !== 'string') {
-    return response.status(400).json({ error: 'A contact email or phone number is required.' });
-  }
-
-  const code = await issueOtp(contact, purpose);
-
-  // TODO: replace with a real email/SMS provider. Logging for local dev only.
-  console.log(`[otp] ${purpose} code for ${contact}: ${code}`);
-
-  response.json({ status: 'sent' });
+// Customer/vendor OTP authentication. Never log codes or provider credentials.
+router.post('/otp/request', otpRequestLimiter, async (request, response) => {
+  const result = await requestOtpDelivery(request.body);
+  response.set('Cache-Control', 'no-store').json(result);
 });
 
 router.post('/otp/verify', async (request, response) => {
-  const { contact, code, role } = request.body || {};
-  if (!contact || !code || !['customer', 'supplier'].includes(role)) {
-    return response.status(400).json({ error: 'contact, code, and a valid role are required.' });
+  const { code, role, purpose = 'signup' } = request.body || {};
+  if (typeof code !== 'string' || !/^[0-9]{6}$/.test(code) || !['customer', 'supplier'].includes(role)) {
+    return response.status(400).json({ error: 'Enter a six-digit code and select a customer or vendor account.' });
   }
-
-  const ok = await verifyOtp(contact, code, 'signup');
-  if (!ok) {
-    return response.status(401).json({ error: 'Invalid or expired code.' });
-  }
-
+  const { contact } = parseOtpRequest({ contact: request.body.contact, purpose });
   const pool = getPool();
-  const normalizedContact = contact.trim().toLowerCase();
-
-  let account = await pool.query(
-    `SELECT id, role, status FROM app_users WHERE lower(email) = $1`,
-    [normalizedContact]
-  );
-
-  if (account.rowCount === 0) {
-    account = await pool.query(
-      `INSERT INTO app_users (email, password_hash, role, status)
-       VALUES ($1, '', $2, 'active')
-       RETURNING id, role, status`,
-      [normalizedContact, role]
-    );
+  const existing = await pool.query('SELECT id, role, status FROM app_users WHERE lower(email) = $1', [contact]);
+  let account = existing.rows[0];
+  if ((account && (account.status !== 'active' || account.role !== role)) || (!account && purpose === 'login')) {
+    return response.status(401).json({ error: 'Unable to sign in with these account details.' });
   }
-
-  const { rawToken, expiresAt } = await createSession(account.rows[0].id);
+  const ok = await verifyOtp(contact, code, purpose);
+  if (!ok) return response.status(401).json({ error: 'Invalid or expired code.' });
+  if (!account) {
+    const created = await pool.query(
+      `INSERT INTO app_users (email, password_hash, role, status)
+       VALUES ($1, '', $2, 'active') ON CONFLICT DO NOTHING RETURNING id, role, status`, [contact, role]);
+    account = created.rows[0] || (await pool.query('SELECT id, role, status FROM app_users WHERE lower(email) = $1', [contact])).rows[0];
+  }
+  if (!account || account.role !== role || account.status !== 'active') {
+    return response.status(401).json({ error: 'Unable to sign in with these account details.' });
+  }
+  const { rawToken, expiresAt } = await createSession(account.id);
   response.cookie(SESSION_COOKIE_NAME, rawToken, sessionCookieOptions());
-  response.json({
-    accountId: account.rows[0].id,
-    role: account.rows[0].role,
-    expiresAt
-  });
+  response.set('Cache-Control', 'no-store').json({ accountId: account.id, role: account.role, expiresAt });
 });
 
 // --- Tier 1: password login (staff / admin / anyone with a set password) -

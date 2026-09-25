@@ -5,6 +5,7 @@ const ROLE_LABELS = {
   customer: 'Customer Portal',
   supplier: 'Vendor Platform',
   staff:    'Operations Console',
+  admin: 'Admin Console',
 };
 
 const ROLE_ICONS = {
@@ -52,14 +53,14 @@ export default function Navbar() {
       <div className="topline" />
       <header className="enterprise-navbar">
         {/* Brand Section */}
-        <div 
+        <button type="button" aria-label="Go to overview or workspace"
           className="nav-brand-section" 
           onClick={() => setCurrentView(currentUser ? (currentView === 'home' ? (currentUser.role === 'supplier' ? 'vendor' : currentUser.role) : 'home') : 'home')}
         >
           <span className="nav-brand-title">
             IT<span className="brand-accent-o">O</span>VA
           </span>
-        </div>
+        </button>
 
         {/* Center Navigation Links */}
         {!currentUser ? (
