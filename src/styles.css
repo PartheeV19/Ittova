@@ -2648,6 +2648,7 @@ input[type="text"],
 input[type="email"],
 input[type="number"],
 input[type="password"],
+input[type="tel"],
 select,
 textarea {
   width: 100%;
@@ -3340,6 +3341,28 @@ tr:hover td {
   font-family: var(--font-mono);
 }
 
+.phone-input-group {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.phone-country-select {
+  flex: 0 0 72px;
+  width: 72px;
+  max-width: 76px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 0.75rem 1.15rem 0.75rem 0.55rem !important;
+  background-position: right 5px center !important;
+}
+
+.phone-input-group input {
+  flex: 1;
+  min-width: 0;
+}
+
 .gate-privacy-note {
   display: flex;
   align-items: flex-start;
@@ -3561,7 +3584,29 @@ button.nav-brand-section { background: transparent; border: 0; text-align: left;
 .cad-dialog { border: 1px solid var(--line); width: min(900px, calc(100vw - 32px)); margin: auto; color: var(--ink); }
 .cad-dialog::backdrop { background: rgba(16, 42, 67, .65); }
 
-.gate-otp-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.gate-otp-block {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.gate-otp-subheading {
+  font-family: var(--font-heading);
+  font-size: 0.88rem;
+  font-weight: 750;
+  color: var(--ink);
+  margin-bottom: 3px;
+  display: block;
+}
+
+.gate-otp-hint {
+  font-size: 0.76rem;
+  color: var(--muted);
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+
+.gate-otp-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
 .gate-otp-boxes { display: flex; gap: 6px; }
 .gate-otp-boxes input { width: clamp(30px, 7vw, 40px); min-width: 0; height: 44px; padding: 0; text-align: center; font-size: 1.1rem; font-weight: 700; }
 .gate-otp-row .btn { white-space: nowrap; }

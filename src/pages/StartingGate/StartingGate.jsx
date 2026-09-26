@@ -2,7 +2,15 @@ import React, { useRef, useState } from 'react';
 
 import { useApp } from '../../context/AppContext';
 
+const COUNTRY_CODES = [
+  '+91', '+1', '+44', '+971', '+49', '+65', '+61', '+81',
+  '+86', '+33', '+39', '+82', '+966', '+974', '+60', '+66',
+  '+84', '+31', '+41', '+46', '+34', '+55', '+27', '+62',
+  '+880', '+94'
+];
+
 export default function StartingGate({ onComplete }) {
+  const [countryCode, setCountryCode] = useState('+91');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -40,11 +48,28 @@ export default function StartingGate({ onComplete }) {
     }
   };
 
+  const handleCountryCodeChange = (newCode) => {
+    resetOtp();
+    setCountryCode(newCode);
+    if (errors.phone) {
+      setErrors(prev => ({ ...prev, phone: null }));
+    }
+  };
+
+  const getFullPhone = () => {
+    const raw = (formData.phone || '').trim().replace(/[\s().-]/g, '');
+    if (!raw) return '';
+    if (raw.startsWith('+')) return raw;
+    const stripped = raw.replace(/^0+/, '');
+    return `${countryCode}${stripped}`;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (pending.current) return;
     const newErrors = {};
 
+    const fullPhone = getFullPhone();
     if (!formData.name.trim()) newErrors.name = 'Full name is required';
     if (!formData.email.trim()) {
       newErrors.email = 'Official email is required';
@@ -52,8 +77,11 @@ export default function StartingGate({ onComplete }) {
       newErrors.email = 'Please enter a valid email address';
     }
     if (!formData.company.trim()) newErrors.company = 'Company / Organization is required';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    else if (!/^\+[1-9][0-9]{7,14}$/.test(formData.phone.replace(/[\s().-]/g, ''))) newErrors.phone = 'Include your country code, for example +919876543210';
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!/^\+[1-9][0-9]{7,14}$/.test(fullPhone)) {
+      newErrors.phone = 'Please enter a valid phone number';
+    }
     if (!formData.role.trim()) newErrors.role = 'Participant role is required';
 
     if (Object.keys(newErrors).length > 0) {
@@ -69,7 +97,7 @@ export default function StartingGate({ onComplete }) {
       return;
     }
     const email = formData.email.trim().toLowerCase();
-    const phone = formData.phone.replace(/[\s().-]/g, '');
+    const phone = fullPhone;
     if (codeComplete && !sentTo) {
       setOtpError('Request an OTP before submitting a code.');
       return;
@@ -91,6 +119,8 @@ export default function StartingGate({ onComplete }) {
       } else {
         const result = await verifyOtp(sentTo.email, code, role, { onVerified: () => onComplete({
           ...formData,
+          phone,
+          countryCode,
           verifiedContact: sentTo.email,
           otpDestinations: sentTo,
           verificationMethod: 'shared-otp',
@@ -202,43 +232,57 @@ export default function StartingGate({ onComplete }) {
                   {errors.name && <span id="gate-name-error" role="alert" className="field-error-msg">{errors.name}</span>}
                 </div>
 
-                <div className="grid-2" style={{ gap: '12px' }}>
-                  <div className="form-group-block">
-                    <label htmlFor="gate-email">
-                      Official Work Email <span className="text-red">*</span>
-                    </label>
-                    <input
-                      id="gate-email"
+                <div className="form-group-block">
+                  <label htmlFor="gate-email">
+                    Official Work Email <span className="text-red">*</span>
+                  </label>
+                  <input
+                    id="gate-email"
                     autoComplete="email"
                     aria-required="true"
                     aria-invalid={Boolean(errors.email)}
                     aria-describedby={errors.email ? "gate-email-error" : undefined}
-                      type="email"
-                      value={formData.email}
-                      onChange={e => updateField('email', e.target.value)}
-                      className={errors.email ? 'input-error' : ''}
-                    />
-                    {errors.email && <span id="gate-email-error" role="alert" className="field-error-msg">{errors.email}</span>}
-                  </div>
+                    type="email"
+                    value={formData.email}
+                    onChange={e => updateField('email', e.target.value)}
+                    className={errors.email ? 'input-error' : ''}
+                  />
+                  {errors.email && <span id="gate-email-error" role="alert" className="field-error-msg">{errors.email}</span>}
+                </div>
 
-                  <div className="form-group-block">
-                    <label htmlFor="gate-phone">
-                      Mobile / Phone <span className="text-red">*</span>
-                    </label>
+                <div className="form-group-block">
+                  <label htmlFor="gate-phone">
+                    Mobile / Phone <span className="text-red">*</span>
+                  </label>
+                  <div className="phone-input-group">
+                    <select
+                      id="gate-country-code"
+                      aria-label="Country Dialing Code"
+                      value={countryCode}
+                      onChange={e => handleCountryCodeChange(e.target.value)}
+                      className="phone-country-select"
+                      disabled={busy}
+                    >
+                      {COUNTRY_CODES.map(code => (
+                        <option key={code} value={code}>
+                          {code}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       id="gate-phone"
-                      placeholder="+91 98765 43210"
-                    autoComplete="tel"
-                    aria-required="true"
-                    aria-invalid={Boolean(errors.phone)}
-                    aria-describedby={errors.phone ? "gate-phone-error" : undefined}
-                      type="text"
+                      placeholder="98765 43210"
+                      autoComplete="tel"
+                      aria-required="true"
+                      aria-invalid={Boolean(errors.phone)}
+                      aria-describedby={errors.phone ? "gate-phone-error" : undefined}
+                      type="tel"
                       value={formData.phone}
                       onChange={e => updateField('phone', e.target.value)}
                       className={errors.phone ? 'input-error' : ''}
                     />
-                    {errors.phone && <span id="gate-phone-error" role="alert" className="field-error-msg">{errors.phone}</span>}
                   </div>
+                  {errors.phone && <span id="gate-phone-error" role="alert" className="field-error-msg">{errors.phone}</span>}
                 </div>
 
                 <div className="form-group-block">
@@ -276,39 +320,48 @@ export default function StartingGate({ onComplete }) {
                   </select>
                 </div>
 
-                <div className="gate-otp-row">
-                  <div className="gate-otp-boxes" role="group" aria-label="One-time password">
-                    {Array.from({ length: 6 }, (_, index) => (
-                      <input
-                        key={index}
-                        ref={element => { otpInputs.current[index] = element; }}
-                        aria-label={`OTP digit ${index + 1}`}
-                        aria-invalid={Boolean(otpError)}
-                        aria-describedby={otpError ? 'gate-otp-error' : undefined}
-                        inputMode="numeric"
-                        autoComplete={index === 0 ? 'one-time-code' : 'off'}
-                        value={code[index]?.trim() || ''}
-                        onFocus={e => e.target.select()}
-                        onChange={e => enterDigits(index, e.target.value)}
-                        onPaste={e => { e.preventDefault(); enterDigits(index, e.clipboardData.getData('text')); }}
-                        onKeyDown={e => {
-                          if (e.key === 'Backspace' && !code[index]?.trim() && index > 0) {
-                            e.preventDefault(); enterDigits(index - 1, ''); otpInputs.current[index - 1]?.focus();
-                          } else if (e.key === 'ArrowLeft' && index > 0) {
-                            e.preventDefault(); otpInputs.current[index - 1]?.focus();
-                          } else if (e.key === 'ArrowRight' && index < 5) {
-                            e.preventDefault(); otpInputs.current[index + 1]?.focus();
-                          }
-                        }}
-                      />
-                    ))}
+                <div className="gate-otp-block">
+                  <label className="gate-otp-subheading">
+                    One-Time Password (OTP) <span className="text-red">*</span>
+                  </label>
+                  <p className="gate-otp-hint">
+                    {sentTo 
+                      ? `Code sent to ${sentTo.email} & ${sentTo.phone}. Enter the 6-digit code below:` 
+                      : 'You will receive the 6-digit code on both your phone and email.'}
+                  </p>
+                  <div className="gate-otp-row">
+                    <div className="gate-otp-boxes" role="group" aria-label="One-time password">
+                      {Array.from({ length: 6 }, (_, index) => (
+                        <input
+                          key={index}
+                          ref={element => { otpInputs.current[index] = element; }}
+                          aria-label={`OTP digit ${index + 1}`}
+                          aria-invalid={Boolean(otpError)}
+                          aria-describedby={otpError ? 'gate-otp-error' : undefined}
+                          inputMode="numeric"
+                          autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                          value={code[index]?.trim() || ''}
+                          onFocus={e => e.target.select()}
+                          onChange={e => enterDigits(index, e.target.value)}
+                          onPaste={e => { e.preventDefault(); enterDigits(index, e.clipboardData.getData('text')); }}
+                          onKeyDown={e => {
+                            if (e.key === 'Backspace' && !code[index]?.trim() && index > 0) {
+                              e.preventDefault(); enterDigits(index - 1, ''); otpInputs.current[index - 1]?.focus();
+                            } else if (e.key === 'ArrowLeft' && index > 0) {
+                              e.preventDefault(); otpInputs.current[index - 1]?.focus();
+                            } else if (e.key === 'ArrowRight' && index < 5) {
+                              e.preventDefault(); otpInputs.current[index + 1]?.focus();
+                            }
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <button type="submit" className="btn btn-dark btn-sm" disabled={busy}>
+                      {busy ? 'Please wait...' : codeComplete ? 'Submit OTP' : 'Get OTP'}
+                    </button>
                   </div>
-                  <button type="submit" className="btn btn-dark btn-sm" disabled={busy}>
-                    {busy ? 'Please wait...' : codeComplete ? 'Submit OTP' : 'Get OTP'}
-                  </button>
+                  {otpError && <p id="gate-otp-error" role="alert" className="field-error-msg">{otpError}</p>}
                 </div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '8px 0 0' }}>You will receive the OTP on your phone and email.</p>
-                {otpError && <p id="gate-otp-error" role="alert" className="field-error-msg">{otpError}</p>}
                 </fieldset>
               </form>
             </div>
