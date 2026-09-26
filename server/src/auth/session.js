@@ -45,10 +45,15 @@ export async function revokeSession(rawToken) {
 }
 
 export function sessionCookieOptions() {
+  const isProduction = process.env.NODE_ENV === 'production';
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    // 'none' is required for a cross-domain setup (Vercel frontend + a
+    // separately hosted backend) -- it only works combined with Secure,
+    // which requires HTTPS, hence the same isProduction check. Local dev
+    // stays 'lax' since http://localhost can't set Secure cookies at all.
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: SESSION_TTL_MS,
     path: '/'
   };

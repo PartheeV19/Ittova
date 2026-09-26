@@ -2,7 +2,11 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 
 const AppContext = createContext();
-const API_BASE = '/api/v1';
+// In dev, Vite proxies '/api' to localhost:3001 (see vite.config.js) --
+// that proxy does not exist in a production build. Once deployed, set
+// VITE_API_URL (in Vercel's project env vars) to your deployed backend's
+// full origin, e.g. https://api.your-domain.com -- leave unset for local dev.
+const API_BASE = `${import.meta.env.VITE_API_URL || ''}/api/v1`;
 
 // Thin fetch wrapper: JSON in, JSON out, session cookie always sent, and a
 // non-2xx response throws with the server's error message so callers can
