@@ -2,7 +2,9 @@ import 'dotenv/config';
 import app from './app.js';
 import { closePool } from './db/pool.js';
 
-const port = Number.parseInt(process.env.API_PORT || '3001', 10);
+// Railway/Render/etc. assign PORT dynamically and route traffic to it --
+// API_PORT stays as the local-dev override (compose.yaml, .env).
+const port = Number.parseInt(process.env.PORT || process.env.API_PORT || '3001', 10);
 const server = app.listen(port, () => {
   console.log(`ITOVA API listening on http://localhost:${port}`);
 });
