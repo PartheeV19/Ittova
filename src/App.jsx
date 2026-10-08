@@ -11,6 +11,7 @@ import CustomerPortal from './pages/Customer/CustomerPortal';
 import SupplierPortal from './pages/Supplier/SupplierPortal';
 import AdminPortal from './pages/Admin/AdminPortal';
 import StaffPortal from './pages/Staff/StaffPortal';
+import AccountPage from './pages/Account/AccountPage';
 
 export default function App() {
   const { currentUser, authChecked, dbLoading, visitorProfile, saveVisitorProfile } = useApp();
@@ -53,6 +54,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<Home />} />
+        <Route path="/account/:profileId" element={currentUser ? <AccountPage /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={currentUser ? <Navigate to="/home" replace /> : <LoginScreen />} />
         <Route path="/customer" element={portal()} />
         <Route path="/vendor" element={portal()} />

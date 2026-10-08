@@ -48,11 +48,15 @@ export function AppProvider({ children }) {
   const [db, setDb] = useState({ customers: [], vendors: [], projects: [], staff: [] });
   const [dbLoading, setDbLoading] = useState(false);
 
-  const currentView = ({ '/': 'home', '/home': 'home', '/login': 'login', '/customer': 'customer', '/vendor': 'vendor', '/supplier': 'vendor', '/staff': 'staff', '/admin': 'admin' }[location.pathname] || 'home');
+  const currentView = ({ '/': 'home', '/home': 'home', '/login': 'login', '/customer': 'customer', '/vendor': 'vendor', '/supplier': 'vendor', '/staff': 'staff', '/admin': 'admin' }[location.pathname] || (location.pathname.startsWith('/account/') ? 'account' : 'home'));
 
   const setCurrentView = (view, replace = false) => {
     const normalizedView = view === 'supplier' ? 'vendor' : view;
     navigate(`/${normalizedView}`, { replace });
+  };
+
+  const openMyAccount = (profileId = currentUser?.id) => {
+    if (profileId) navigate(`/account/${encodeURIComponent(profileId)}`);
   };
 
   const navigateBack = () => {
@@ -86,7 +90,7 @@ export function AppProvider({ children }) {
   }, []);
 
   // --- Auth: session comes from an httpOnly cookie, not localStorage -------
-  const [currentUser, setCurrentUser] = useState(null); // { accountId, role, id, name, status }
+  const [currentUser, setCurrentUser] = useState(null); // { accountId, role, id, publicId, name, status }
   const [authChecked, setAuthChecked] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -106,6 +110,9 @@ export function AppProvider({ children }) {
     return null;
   }, []);
 
+  const loadAccountPage = useCallback((profileId) =>
+    apiFetch(`/accounts/${encodeURIComponent(profileId)}`), []);
+
   const applySession = useCallback(async (session) => {
     if (!session) {
       setCurrentUser(null);
@@ -113,7 +120,13 @@ export function AppProvider({ children }) {
       return;
     }
     const profile = await loadOwnProfile(session.role);
-    const user = { accountId: session.accountId, role: session.role, id: profile?.id || '', name: profile?.name || '' };
+    const user = {
+      accountId: session.accountId,
+      role: session.role,
+      id: profile?.id || session.publicId || '',
+      publicId: session.publicId || profile?.id || '',
+      name: profile?.name || session.profileData?.fullName || session.profileData?.company || ''
+    };
     setCurrentUser(user);
     if (user.role === 'customer' && user.id) setSelectedCustomerId(user.id);
     if (user.role === 'supplier' && user.id) setSelectedVendorId(user.id);
@@ -232,12 +245,13 @@ export function AppProvider({ children }) {
     return result;
   });
 
-  const verifyOtp = (contact, code, role, { onVerified, purpose = 'signup' } = {}) =>
+  const verifyOtp = (contact, code, role, { onVerified, purpose = 'signup', profile } = {}) =>
     runAction(async () => {
-      const session = await apiFetch('/auth/otp/verify', { method: 'POST', body: { contact, code, role, purpose } });
+      const session = await apiFetch('/auth/otp/verify', { method: 'POST', body: { contact, code, role, purpose, profile } });
       if (onVerified) onVerified();
       const user = await applySession(session);
-      setCurrentView('home', true);
+      if (purpose === 'signup') setCurrentView(role === 'supplier' ? 'vendor' : 'customer', true);
+      else setCurrentView('home', true);
       return user;
     }, 'Invalid or expired code.');
 
@@ -512,6 +526,8 @@ export function AppProvider({ children }) {
       db,
       dbLoading,
       currentUser,
+      openMyAccount,
+      loadAccountPage,
       authChecked,
       login,
       logout,

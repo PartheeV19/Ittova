@@ -1,13 +1,9 @@
-import { randomInt } from 'node:crypto';
 import { Router } from 'express';
 import { getPool } from '../db/pool.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { ensureAccountPublicId } from '../auth/user-id.js';
 
 const router = Router();
-
-function newCustomerId() {
-  return `C-${randomInt(1000, 9999)}`;
-}
 
 function toApiShape(row) {
   return {
@@ -25,7 +21,7 @@ function toApiShape(row) {
 // Create the customer profile for the signed-in account (post OTP-verify).
 // One profile per app_users row -- a second call just returns the existing one.
 router.post('/', requireAuth, requireRole('customer'), async (request, response) => {
-  const { name, email, phone, location, ...profileFields } = request.body || {};
+  const { name, email, phone, location, accountLocation, ...profileFields } = request.body || {};
   if (!name) {
     return response.status(400).json({ error: 'A company/customer name is required.' });
   }
@@ -36,13 +32,21 @@ router.post('/', requireAuth, requireRole('customer'), async (request, response)
     return response.json(toApiShape(existing.rows[0]));
   }
 
-  const id = newCustomerId();
+  const identity = await ensureAccountPublicId(pool, request.user.accountId, accountLocation);
+  if (identity.error) return response.status(400).json({ error: identity.error });
+  const id = identity.publicId || request.user.publicId;
   const inserted = await pool.query(
     `INSERT INTO customers (id, account_id, name, email, phone, location, status, profile)
      VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', $7)
+     ON CONFLICT (account_id) DO NOTHING
      RETURNING *`,
     [id, request.user.accountId, name, email || null, phone || null, location || null, JSON.stringify(profileFields)]
   );
+
+  if (!inserted.rowCount) {
+    const concurrent = await pool.query('SELECT * FROM customers WHERE account_id = $1', [request.user.accountId]);
+    return response.json(toApiShape(concurrent.rows[0]));
+  }
 
   response.status(201).json(toApiShape(inserted.rows[0]));
 });

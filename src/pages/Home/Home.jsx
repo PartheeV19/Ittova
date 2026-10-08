@@ -55,25 +55,25 @@ export default function Home() {
               <svg className="control-hex-svg" viewBox="0 0 520 440" fill="none" xmlns="http://www.w3.org/2000/svg">
                 {/* Outer Hexagon Frame */}
                 <polygon 
-                  points="260,20 480,115 480,325 260,420 40,325 40,115" 
+                  points="260,0 506,110 506,330 260,440 14,330 14,110"
                   className="hex-poly-outer" 
                 />
                 {/* Inner Concentric Hexagon */}
                 <polygon 
-                  points="260,82 414,146 414,294 260,358 106,294 106,146" 
+                  points="260,57 442,138 442,302 260,383 78,302 78,138"
                   className="hex-poly-inner" 
                 />
                 {/* Connecting Laser Beams to Corner Nodes */}
-                <line x1="260" y1="220" x2="40" y2="115" className="hex-laser-beam beam-customer" />
-                <line x1="260" y1="220" x2="480" y2="115" className="hex-laser-beam beam-quality" />
-                <line x1="260" y1="220" x2="40" y2="325" className="hex-laser-beam beam-material" />
-                <line x1="260" y1="220" x2="480" y2="325" className="hex-laser-beam beam-logistics" />
-                <line x1="260" y1="220" x2="260" y2="20" className="hex-laser-beam beam-top" />
-                <line x1="260" y1="220" x2="260" y2="420" className="hex-laser-beam beam-bottom" />
+                <line x1="260" y1="220" x2="14" y2="110" className="hex-laser-beam beam-customer" />
+                <line x1="260" y1="220" x2="506" y2="110" className="hex-laser-beam beam-quality" />
+                <line x1="260" y1="220" x2="14" y2="330" className="hex-laser-beam beam-material" />
+                <line x1="260" y1="220" x2="506" y2="330" className="hex-laser-beam beam-logistics" />
+                <line x1="260" y1="220" x2="260" y2="0" className="hex-laser-beam beam-top" />
+                <line x1="260" y1="220" x2="260" y2="440" className="hex-laser-beam beam-bottom" />
 
                 {/* Vertex Anchors */}
-                <circle cx="260" cy="20" r="4" className="hex-vertex-dot" />
-                <circle cx="260" cy="420" r="4" className="hex-vertex-dot" />
+                <circle cx="260" cy="0" r="4" className="hex-vertex-dot" />
+                <circle cx="260" cy="440" r="4" className="hex-vertex-dot" />
               </svg>
 
               {/* Top-Left Corner: CUSTOMER */}
@@ -156,8 +156,7 @@ export default function Home() {
               >
                 <div className="hex-core-glow" />
                 <div className="hex-core-badge">
-                  <span className="hex-core-title">ITOVA</span>
-                  <span className="hex-core-sub">SYSTEM CORE</span>
+                  <span className="hex-core-title">IT<span className="brand-accent-o">O</span>VA</span>
                 </div>
               </div>
             </div>

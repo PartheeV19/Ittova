@@ -28,7 +28,7 @@ const ROLE_ICONS = {
 };
 
 export default function Navbar() {
-  const { currentUser, currentView, setCurrentView, logout, visitorProfile, clearVisitorProfile } = useApp();
+  const { currentUser, currentView, setCurrentView, openMyAccount, logout, visitorProfile, clearVisitorProfile } = useApp();
 
   const roleLabel = ROLE_LABELS[currentUser?.role] || '';
   const subRole = currentUser?.subRole
@@ -112,11 +112,20 @@ export default function Navbar() {
             </button>
             <button 
               type="button"
-              className={`nav-item-link ${currentView !== 'home' ? 'active' : ''}`}
+              className={`nav-item-link ${currentView === (currentUser.role === 'supplier' ? 'vendor' : currentUser.role) ? 'active' : ''}`}
               onClick={() => setCurrentView(currentUser.role === 'supplier' ? 'vendor' : currentUser.role)}
             >
               Active Workspace
             </button>
+            {['customer', 'supplier'].includes(currentUser.role) && currentUser.id && (
+              <button
+                type="button"
+                className={`nav-item-link ${currentView === 'account' ? 'active' : ''}`}
+                onClick={() => openMyAccount()}
+              >
+                My Account
+              </button>
+            )}
           </nav>
         )}
 

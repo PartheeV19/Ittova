@@ -90,13 +90,21 @@ export default function StartingGate({ onComplete }) {
         setCode('');
         setResendAt(Date.now() + 60000);
       } else {
-        const result = await verifyOtp(sentTo.email, code, role, { onVerified: () => onComplete({
-          ...formData,
-          verifiedContact: sentTo.email,
-          otpDestinations: sentTo,
-          verificationMethod: 'shared-otp',
-          verifiedAt: new Date().toISOString()
-        }) });
+        const result = await verifyOtp(sentTo.email, code, role, {
+          profile: {
+            fullName: formData.name.trim(),
+            company: formData.company.trim(),
+            phone,
+            participantRole: formData.role
+          },
+          onVerified: () => onComplete({
+            ...formData,
+            verifiedContact: sentTo.email,
+            otpDestinations: sentTo,
+            verificationMethod: 'shared-otp',
+            verifiedAt: new Date().toISOString()
+          })
+        });
         if (!result) setOtpError('Verification failed. Check the code or request a new one.');
       }
     } finally { pending.current = false; setBusy(false); }
@@ -256,7 +264,7 @@ export default function StartingGate({ onComplete }) {
                     onChange={e => updateField('company', e.target.value)}
                     className={errors.company ? 'input-error' : ''}
                   />
-                  {errors.company && <span id="gate-company-error" role="alert" className="field-error-msg">{errors.company}</span>}
+                {errors.company && <span id="gate-company-error" role="alert" className="field-error-msg">{errors.company}</span>}
                 </div>
 
                 <div className="form-group-block">

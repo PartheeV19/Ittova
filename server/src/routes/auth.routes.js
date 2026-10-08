@@ -16,13 +16,19 @@ router.post('/otp/request', otpRequestLimiter, async (request, response) => {
 });
 
 router.post('/otp/verify', async (request, response) => {
-  const { code, role, purpose = 'signup' } = request.body || {};
+  const { code, role, purpose = 'signup', profile } = request.body || {};
   if (typeof code !== 'string' || !/^[0-9]{6}$/.test(code) || !['customer', 'supplier'].includes(role)) {
     return response.status(400).json({ error: 'Enter a six-digit code and select a customer or vendor account.' });
   }
+  if (purpose === 'signup') {
+    if (typeof profile?.fullName !== 'string' || !profile.fullName.trim()
+      || typeof profile?.company !== 'string' || !profile.company.trim()) {
+      return response.status(400).json({ error: 'Full name and company are required to create your account.' });
+    }
+  }
   const { contact } = parseOtpRequest({ contact: request.body.contact, purpose });
   const pool = getPool();
-  const existing = await pool.query('SELECT id, role, status FROM app_users WHERE lower(email) = $1', [contact]);
+  const existing = await pool.query('SELECT id, role, status, public_id, identity_codes, profile_data FROM app_users WHERE lower(email) = $1', [contact]);
   let account = existing.rows[0];
   if ((account && (account.status !== 'active' || account.role !== role)) || (!account && purpose === 'login')) {
     return response.status(401).json({ error: 'Unable to sign in with these account details.' });
@@ -30,17 +36,33 @@ router.post('/otp/verify', async (request, response) => {
   const ok = await verifyOtp(contact, code, purpose);
   if (!ok) return response.status(401).json({ error: 'Invalid or expired code.' });
   if (!account) {
+    const profileData = {
+      fullName: profile.fullName.trim(),
+      company: profile.company.trim(),
+      phone: typeof profile.phone === 'string' ? profile.phone.trim() : '',
+      participantRole: typeof profile.participantRole === 'string' ? profile.participantRole.trim() : ''
+    };
     const created = await pool.query(
-      `INSERT INTO app_users (email, password_hash, role, status)
-       VALUES ($1, '', $2, 'active') ON CONFLICT DO NOTHING RETURNING id, role, status`, [contact, role]);
-    account = created.rows[0] || (await pool.query('SELECT id, role, status FROM app_users WHERE lower(email) = $1', [contact])).rows[0];
+      `INSERT INTO app_users (email, password_hash, role, status, profile_data)
+       VALUES ($1, '', $2, 'active', $3) ON CONFLICT DO NOTHING
+       RETURNING id, role, status, public_id, identity_codes, profile_data`,
+      [contact, role, JSON.stringify(profileData)]);
+    account = created.rows[0] || (await pool.query(
+      'SELECT id, role, status, public_id, identity_codes, profile_data FROM app_users WHERE lower(email) = $1', [contact]
+    )).rows[0];
   }
   if (!account || account.role !== role || account.status !== 'active') {
     return response.status(401).json({ error: 'Unable to sign in with these account details.' });
   }
   const { rawToken, expiresAt } = await createSession(account.id);
   response.cookie(SESSION_COOKIE_NAME, rawToken, sessionCookieOptions());
-  response.set('Cache-Control', 'no-store').json({ accountId: account.id, role: account.role, expiresAt });
+  response.set('Cache-Control', 'no-store').json({
+    accountId: account.id,
+    role: account.role,
+    expiresAt,
+    publicId: account.public_id,
+    profileData: account.profile_data
+  });
 });
 
 // --- Tier 1: password login (staff / admin / anyone with a set password) -
@@ -53,7 +75,7 @@ router.post('/login', async (request, response) => {
 
   const pool = getPool();
   const result = await pool.query(
-    `SELECT id, role, status, password_hash FROM app_users WHERE lower(email) = $1`,
+    `SELECT id, role, status, password_hash, public_id, profile_data FROM app_users WHERE lower(email) = $1`,
     [email.trim().toLowerCase()]
   );
 
@@ -67,7 +89,7 @@ router.post('/login', async (request, response) => {
 
   const { rawToken, expiresAt } = await createSession(account.id);
   response.cookie(SESSION_COOKIE_NAME, rawToken, sessionCookieOptions());
-  response.json({ accountId: account.id, role: account.role, expiresAt });
+  response.json({ accountId: account.id, role: account.role, expiresAt, publicId: account.public_id, profileData: account.profile_data });
 });
 
 // --- Common ---------------------------------------------------------------

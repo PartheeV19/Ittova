@@ -27,7 +27,7 @@ export async function resolveSession(rawToken) {
   if (!rawToken) return null;
 
   const result = await getPool().query(
-    `SELECT s.account_id, u.role, u.status
+    `SELECT s.account_id, u.role, u.status, u.public_id, u.profile_data
      FROM sessions s
      JOIN app_users u ON u.id = s.account_id
      WHERE s.token_hash = $1 AND s.expires_at > now()`,
@@ -36,7 +36,13 @@ export async function resolveSession(rawToken) {
 
   if (result.rowCount === 0) return null;
   const row = result.rows[0];
-  return { accountId: row.account_id, role: row.role, status: row.status };
+  return {
+    accountId: row.account_id,
+    role: row.role,
+    status: row.status,
+    publicId: row.public_id,
+    profileData: row.profile_data
+  };
 }
 
 export async function revokeSession(rawToken) {

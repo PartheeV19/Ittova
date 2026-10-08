@@ -2,12 +2,9 @@ import { randomInt } from 'node:crypto';
 import { Router } from 'express';
 import { getPool } from '../db/pool.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { ensureAccountPublicId } from '../auth/user-id.js';
 
 const router = Router();
-
-function newVendorId() {
-  return `V-${randomInt(1000, 9999)}`;
-}
 
 function newMachineId() {
   return `M-${randomInt(100, 999)}`;
@@ -42,7 +39,7 @@ async function loadMachines(pool, vendorId) {
 
 // Create the vendor/supplier profile for the signed-in account.
 router.post('/', requireAuth, requireRole('supplier'), async (request, response) => {
-  const { name, email, phone, location, ...profileFields } = request.body || {};
+  const { name, email, phone, location, accountLocation, ...profileFields } = request.body || {};
   if (!name) {
     return response.status(400).json({ error: 'A facility name is required.' });
   }
@@ -53,13 +50,21 @@ router.post('/', requireAuth, requireRole('supplier'), async (request, response)
     return response.json(toApiShape(existing.rows[0], await loadMachines(pool, existing.rows[0].id)));
   }
 
-  const id = newVendorId();
+  const identity = await ensureAccountPublicId(pool, request.user.accountId, accountLocation);
+  if (identity.error) return response.status(400).json({ error: identity.error });
+  const id = identity.publicId || request.user.publicId;
   const inserted = await pool.query(
     `INSERT INTO vendors (id, account_id, name, email, phone, location, status, audit_score, profile)
      VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', 'Pending Physical Audit', $7)
+     ON CONFLICT (account_id) DO NOTHING
      RETURNING *`,
     [id, request.user.accountId, name, email || null, phone || null, location || null, JSON.stringify(profileFields)]
   );
+
+  if (!inserted.rowCount) {
+    const concurrent = await pool.query('SELECT * FROM vendors WHERE account_id = $1', [request.user.accountId]);
+    return response.json(toApiShape(concurrent.rows[0], await loadMachines(pool, concurrent.rows[0].id)));
+  }
 
   response.status(201).json(toApiShape(inserted.rows[0], []));
 });

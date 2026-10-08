@@ -14,6 +14,7 @@ export default function SupplierPortal() {
     submitVendorQuote,
     setCadModal,
     showToast,
+    openMyAccount,
     navigateBack 
   } = useApp();
 
@@ -33,6 +34,10 @@ export default function SupplierPortal() {
   const [formData, setFormData] = useState({
     name: '',
     location: '',
+    country: 'India',
+    state: '',
+    district: '',
+    city: '',
     phone: '',
     email: '',
     m1_name: '',
@@ -65,6 +70,10 @@ export default function SupplierPortal() {
     setFormData({
       name: 'Apex Precision Aerospace & CNC Works',
       location: 'Cherlapally Industrial Estate, Phase II, Hyderabad',
+      country: 'India',
+      state: 'Telangana',
+      district: 'Hyderabad',
+      city: 'Hyderabad',
       phone: '+91 98765 43210',
       email: 'production@apexprecision.in',
       m1_name: 'Haas VF-4SS Super Speed',
@@ -87,6 +96,10 @@ export default function SupplierPortal() {
     e.preventDefault();
     if (!formData.name.trim()) {
       showToast('Please enter facility name!');
+      return;
+    }
+    if (![formData.country, formData.state, formData.district, formData.city].every(value => value.trim())) {
+      showToast('Complete the country, state, district, and city to generate your account ID.');
       return;
     }
 
@@ -121,6 +134,12 @@ export default function SupplierPortal() {
     const vid = await addVendor({
       name: formData.name,
       location: formData.location,
+      accountLocation: {
+        country: formData.country.trim(),
+        state: formData.state.trim(),
+        district: formData.district.trim(),
+        city: formData.city.trim()
+      },
       phone: formData.phone,
       email: formData.email,
       machines: machines
@@ -129,6 +148,7 @@ export default function SupplierPortal() {
     if (!vid) return;
     setIsRegistering(false);
     setSelectedVendorId(vid);
+    openMyAccount(vid);
   };
 
   const handleAddMachineSubmit = async (e) => {
@@ -309,6 +329,32 @@ export default function SupplierPortal() {
                   placeholder="orders@facility.com" 
                 />
               </div>
+            </div>
+
+            <div className="view-section-title" style={{ marginTop: 'var(--sp-4)' }}>
+              <h3>Account ID Location</h3>
+              <p className="subtitle" style={{ marginBottom: 0 }}>ITOVA assigns the location codes automatically from these details.</p>
+            </div>
+            <div className="grid-2">
+              {[
+                ['country', 'Country', 'e.g. India'],
+                ['state', 'State / Province', 'e.g. Telangana'],
+                ['district', 'District', 'e.g. Hyderabad'],
+                ['city', 'City / Town', 'e.g. Hyderabad']
+              ].map(([field, label, placeholder]) => (
+                <div key={field}>
+                  <label htmlFor={`supplier-${field}`}>{label} <span className="text-danger">*</span></label>
+                  <input
+                    id={`supplier-${field}`}
+                    type="text"
+                    maxLength={120}
+                    autoComplete={field === 'country' ? 'country-name' : 'off'}
+                    value={formData[field]}
+                    onChange={e => setFormData({ ...formData, [field]: e.target.value })}
+                    placeholder={placeholder}
+                  />
+                </div>
+              ))}
             </div>
 
             <div className="view-section-title" style={{ marginTop: 'var(--sp-6)' }}>

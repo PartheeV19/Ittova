@@ -16,6 +16,7 @@ export default function CustomerPortal() {
     payCustomerFinal, 
     setCadModal,
     showToast,
+    openMyAccount,
     navigateBack
   } = useApp();
 
@@ -109,6 +110,7 @@ export default function CustomerPortal() {
             onComplete={(cid) => {
               setIsRegistering(false);
               setSelectedCustomerId(cid);
+              openMyAccount(cid);
             }} 
             onCancel={() => setIsRegistering(false)} 
           />

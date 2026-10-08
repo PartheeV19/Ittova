@@ -16,6 +16,10 @@ export default function CustomerWizard({ onComplete, onCancel }) {
     pan: '',
     gst: '',
     address: '',
+    country: 'India',
+    state: '',
+    district: '',
+    city: '',
     signatoryName: '',
     signatoryDesig: '',
     signatoryPhone: '',
@@ -93,6 +97,10 @@ export default function CustomerWizard({ onComplete, onCancel }) {
       pan: 'AABCZ9876K',
       gst: '36AABCZ9876K1Z8',
       address: 'Plot 45, Phase-III, IDA Industrial Estate, Hyderabad, Telangana 500051',
+      country: 'India',
+      state: 'Telangana',
+      district: 'Hyderabad',
+      city: 'Hyderabad',
       signatoryName: 'K. V. Rama Rao',
       signatoryDesig: 'Director & Head of Procurement',
       signatoryPhone: '+91 98490 12345',
@@ -152,6 +160,10 @@ export default function CustomerWizard({ onComplete, onCancel }) {
       showToast('Please enter Company Legal Name before proceeding.');
       return;
     }
+    if (step === 1 && !formData.country.trim()) return showToast('Please enter the country for your account ID.');
+    if (step === 1 && !formData.state.trim()) return showToast('Please enter the state or province for your account ID.');
+    if (step === 1 && !formData.district.trim()) return showToast('Please enter the district for your account ID.');
+    if (step === 1 && !formData.city.trim()) return showToast('Please enter the city or town for your account ID.');
     if (step < 6) setStep(step + 1);
   };
 
@@ -167,10 +179,22 @@ export default function CustomerWizard({ onComplete, onCancel }) {
       setStep(1);
       return;
     }
+    if (![formData.country, formData.state, formData.district, formData.city].every(value => value.trim())) {
+      showToast('Complete the country, state, district, and city in Section 1 to generate your account ID.');
+      setStep(1);
+      return;
+    }
 
     setSubmitting(true);
     const cid = await addCustomer({
       ...formData,
+      location: formData.factoryAddress || formData.address,
+      accountLocation: {
+        country: formData.country.trim(),
+        state: formData.state.trim(),
+        district: formData.district.trim(),
+        city: formData.city.trim()
+      },
       phone: formData.signatoryPhone || formData.procPhone || '',
       email: formData.procEmail || formData.signatoryEmail || '',
       attachedDocs: Array.from(attachedDocs)
@@ -298,6 +322,32 @@ export default function CustomerWizard({ onComplete, onCancel }) {
                 placeholder="Plot 21/A, R&D Enclave, Cherlapally, Hyderabad 500051" 
               />
             </div>
+          </div>
+
+          <div className="view-section-title" style={{ marginTop: 'var(--sp-4)' }}>
+            <h3>Account ID Location</h3>
+            <p className="subtitle" style={{ marginBottom: 0 }}>ITOVA assigns the location codes automatically from these details.</p>
+          </div>
+          <div className="grid-2">
+            {[
+              ['country', 'Country', 'e.g. India'],
+              ['state', 'State / Province', 'e.g. Telangana'],
+              ['district', 'District', 'e.g. Hyderabad'],
+              ['city', 'City / Town', 'e.g. Hyderabad']
+            ].map(([field, label, placeholder]) => (
+              <div key={field}>
+                <label htmlFor={`customer-${field}`}>{label} <span className="text-danger">*</span></label>
+                <input
+                  id={`customer-${field}`}
+                  type="text"
+                  maxLength={120}
+                  autoComplete={field === 'country' ? 'country-name' : 'off'}
+                  value={formData[field]}
+                  onChange={e => updateField(field, e.target.value)}
+                  placeholder={placeholder}
+                />
+              </div>
+            ))}
           </div>
 
           <div className="view-section-title" style={{ marginTop: 'var(--sp-4)' }}>
