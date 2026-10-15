@@ -5,8 +5,6 @@ import LiveStepper from '../../components/LiveStepper';
 export default function SupplierPortal() {
   const { 
     db, 
-    currentUser,
-    logout,
     selectedVendorId, 
     setSelectedVendorId, 
     addVendor, 
@@ -56,9 +54,7 @@ export default function SupplierPortal() {
     m2_rate: ''
   });
 
-  const activeVendor = db.vendors.find(v => v.id === selectedVendorId)
-    || (currentUser?.id ? db.vendors.find(v => v.id === currentUser.id || v.id === currentUser.publicId) : null)
-    || db.vendors[0];
+  const activeVendor = db.vendors.find(v => v.id === selectedVendorId);
 
   // Active production work orders assigned to this facility
   const activeOrders = db.projects.filter(p => {
@@ -183,56 +179,7 @@ export default function SupplierPortal() {
 
   return (
     <div className="view">
-      {/* Vendor Demo Mode Banner */}
-      <div style={{
-        background: 'linear-gradient(90deg, #102a43, #183856)',
-        color: '#ffffff',
-        padding: '10px 16px',
-        borderRadius: 'var(--r-xs)',
-        marginBottom: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px',
-        boxShadow: 'var(--shadow-sm)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem' }}>
-          <span style={{ 
-            background: 'var(--red)', 
-            color: '#ffffff', 
-            fontSize: '0.68rem', 
-            fontWeight: 800, 
-            padding: '2px 8px', 
-            borderRadius: '3px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em'
-          }}>
-            Vendor Demo
-          </span>
-          <span>Logged in as <strong>{activeVendor ? activeVendor.name : (currentUser?.name || 'Manufacturing Partner')}</strong> {activeVendor?.id ? `(${activeVendor.id})` : ''}</span>
-        </div>
-        <button
-          type="button"
-          onClick={logout}
-          style={{
-            background: 'rgba(255, 255, 255, 0.12)',
-            border: '1px solid rgba(255, 255, 255, 0.25)',
-            color: '#ffffff',
-            padding: '5px 14px',
-            borderRadius: 'var(--r-xs)',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
-        >
-          Sign Out &amp; Return to Vendor Auth Demo &rarr;
-        </button>
-      </div>
-
+      {/* In-App Back Navigation */}
       <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button 
           type="button" 
