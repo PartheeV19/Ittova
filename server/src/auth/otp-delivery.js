@@ -21,17 +21,32 @@ export async function deliverOtp({ email, phone, code, id }, { env = process.env
   if (!/^[0-9]{6}$/.test(code)) throw new Error('Invalid generated OTP.');
   const requests = [];
   if (email) requests.push((async () => {
-    const response = await fetchImpl('https://api.resend.com/emails', {
-      method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
-      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json', 'Idempotency-Key': `otp-${id}` },
-      body: JSON.stringify({
-        from: env.OTP_EMAIL_FROM, to: [email], subject: 'Your ITOVA verification code',
-        text: `Your ITOVA verification code is ${code}. It expires in 10 minutes. Do not share this code. If you did not request it, ignore this email.`,
-        html: `<div style="font-family:Arial,sans-serif;color:#102a43;max-width:480px;margin:auto;padding:32px"><h1>IT<span style="color:#c41330">O</span>VA</h1><p>Your verification code</p><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>This code expires in 10 minutes. Do not share it.</p><p>If you did not request this code, ignore this email.</p></div>`
-      })
-    });
-    const result = await response.json().catch(() => null);
-    if (!response.ok || !result?.id) throw new Error('Email provider rejected request.');
+    let result = null;
+    try {
+      const response = await fetchImpl('https://api.resend.com/emails', {
+        method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
+        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json', 'Idempotency-Key': `otp-${id}` },
+        body: JSON.stringify({
+          from: env.OTP_EMAIL_FROM, to: [email], subject: 'Your ITOVA verification code',
+          text: `Your ITOVA verification code is ${code}. It expires in 10 minutes. Do not share this code. If you did not request it, ignore this email.`,
+          html: `<div style="font-family:Arial,sans-serif;color:#102a43;max-width:480px;margin:auto;padding:32px"><h1>IT<span style="color:#c41330">O</span>VA</h1><p>Your verification code</p><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>This code expires in 10 minutes. Do not share it.</p><p>If you did not request this code, ignore this email.</p></div>`
+        })
+      });
+      result = await response.json().catch(() => null);
+      if (!response.ok || !result?.id) {
+        if (isDevOtpBypassActive(env)) {
+          console.log(`[otp-dev-bypass] Email provider rejected/restricted for ${email} -- code: ${code}`);
+          return email;
+        }
+        throw new Error('Email provider rejected request.');
+      }
+    } catch (err) {
+      if (isDevOtpBypassActive(env)) {
+        console.log(`[otp-dev-bypass] Email delivery fallback for ${email} -- code: ${code}`);
+        return email;
+      }
+      throw err;
+    }
     return email;
   })());
   if (phone) requests.push((async () => {

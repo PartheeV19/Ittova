@@ -10,7 +10,13 @@ export function createOtpRequester({ issue = issueOtp, accept = acceptOtpDeliver
     try {
       const acceptedTo = await deliver({ ...input, ...challenge });
       await accept(challenge.id);
-      return { status: 'accepted', acceptedTo, expiresIn: 600, retryAfter: 60 };
+      return {
+        status: 'accepted',
+        acceptedTo,
+        expiresIn: 600,
+        retryAfter: 60,
+        ...(process.env.OTP_DEV_MODE === 'true' && process.env.NODE_ENV !== 'production' ? { devCode: challenge.code } : {})
+      };
     } catch (error) {
       await revoke(challenge.id);
       throw error;
