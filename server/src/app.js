@@ -10,6 +10,7 @@ import vendorRoutes from './routes/vendors.routes.js';
 import staffRoutes from './routes/staff.routes.js';
 import projectRoutes from './routes/projects.routes.js';
 import accountRoutes from './routes/accounts.routes.js';
+import cadRoutes from './routes/cad.routes.js';
 
 const app = express();
 const apiPrefix = `/api/${process.env.API_VERSION || 'v1'}`;
@@ -27,7 +28,7 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '12mb' }));
 app.use(cookieParser());
 app.use(attachUser);
 
@@ -37,6 +38,7 @@ app.use(`${apiPrefix}/vendors`, vendorRoutes);
 app.use(`${apiPrefix}/staff`, staffRoutes);
 app.use(`${apiPrefix}/projects`, projectRoutes);
 app.use(`${apiPrefix}/accounts`, accountRoutes);
+app.use(`${apiPrefix}/cad`, cadRoutes);
 
 app.get(`${apiPrefix}/health/live`, (_request, response) => {
   response.json({ status: 'ok' });
@@ -58,15 +60,16 @@ app.use(apiPrefix, (_request, response) => {
 app.use((error, _request, response, _next) => {
   const isCorsRejection = error.message === 'Origin is not allowed by CORS.';
   const hasKnownStatus = typeof error.statusCode === 'number';
-  const status = hasKnownStatus ? error.statusCode : (isCorsRejection ? 403 : 500);
+  const isPayloadTooLarge = error.type === 'entity.too.large';
+  const status = hasKnownStatus ? error.statusCode : (isCorsRejection ? 403 : (isPayloadTooLarge ? 413 : 500));
   // Errors we threw ourselves (with an explicit statusCode) carry safe,
   // deliberately-written messages -- e.g. "Email verification is not
   // configured yet." Only genuinely unexpected exceptions (DB errors, bugs)
   // get masked, since those could otherwise leak internals to the client.
-  const exposeMessage = hasKnownStatus || isCorsRejection;
+  const exposeMessage = hasKnownStatus || isCorsRejection || isPayloadTooLarge;
   if (!exposeMessage) console.error('API request failed:', error);
   response.status(status).json({
-    error: exposeMessage ? error.message : 'Internal server error.'
+    error: isPayloadTooLarge ? 'Request body is too large.' : (exposeMessage ? error.message : 'Internal server error.')
   });
 });
 

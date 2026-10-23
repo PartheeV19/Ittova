@@ -7,6 +7,7 @@ import CADModal from './components/CADModal';
 import LoginScreen from './pages/Login/LoginScreen';
 import SupplierPortal from './pages/Supplier/SupplierPortal';
 import AccountPage from './pages/Account/AccountPage';
+import CADAnalyzerPage from './pages/CADAnalyzer/CADAnalyzerPage';
 
 export default function App() {
   const { currentUser, authChecked, dbLoading } = useApp();
@@ -24,7 +25,10 @@ export default function App() {
     return (
       <div className="app-root">
         <Navbar />
-        <LoginScreen />
+        <Routes>
+          <Route path="/cad-analyzer" element={<CADAnalyzerPage />} />
+          <Route path="*" element={<LoginScreen />} />
+        </Routes>
         <Toast />
       </div>
     );
@@ -46,6 +50,7 @@ export default function App() {
         <Route path="/home" element={<Navigate to="/vendor" replace />} />
         <Route path="/login" element={<Navigate to="/vendor" replace />} />
         <Route path="/account/:profileId" element={<AccountPage />} />
+        <Route path="/cad-analyzer" element={<CADAnalyzerPage />} />
         <Route path="/vendor" element={renderWorkspace()} />
         <Route path="/supplier" element={<Navigate to="/vendor" replace />} />
         <Route path="*" element={<Navigate to="/vendor" replace />} />
