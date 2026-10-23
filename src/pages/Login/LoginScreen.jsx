@@ -12,6 +12,8 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  const [devCode, setDevCode] = useState('');
+
   const submit = async (event) => {
     event.preventDefault();
     if (busy) return;
@@ -25,8 +27,13 @@ export default function LoginScreen() {
         }
       }
 
+      const cleanContact = contact.trim();
+      const normalizedContact = (/^[0-9]{10}$/.test(cleanContact)) 
+        ? `+91${cleanContact}` 
+        : cleanContact;
+
       const result = sent 
-        ? await verifyOtp(contact.trim(), code.trim(), 'supplier', { 
+        ? await verifyOtp(normalizedContact, code.trim(), 'supplier', { 
             purpose,
             profile: purpose === 'signup' ? {
               fullName: fullName.trim(),
@@ -34,11 +41,14 @@ export default function LoginScreen() {
               participantRole: 'Manufacturing Facility / Vendor'
             } : undefined
           })
-        : await requestOtp(contact.trim(), purpose);
+        : await requestOtp(normalizedContact, purpose);
 
       if (result === null) {
-        setError('Unable to continue. Check your details and try again.');
+        setError('Unable to continue. Check your details and ensure the backend server is running.');
       } else if (!sent) {
+        if (result?.devCode) {
+          setDevCode(result.devCode);
+        }
         setSent(true);
       }
     } finally {
@@ -60,7 +70,7 @@ export default function LoginScreen() {
             disabled={busy} 
             aria-pressed={purpose === 'login'} 
             className={`role-tab-btn ${purpose === 'login' ? 'active' : ''}`} 
-            onClick={() => { setPurpose('login'); setSent(false); setCode(''); setError(''); }}
+            onClick={() => { setPurpose('login'); setSent(false); setCode(''); setDevCode(''); setError(''); }}
           >
             Sign In
           </button>
@@ -69,7 +79,7 @@ export default function LoginScreen() {
             disabled={busy} 
             aria-pressed={purpose === 'signup'} 
             className={`role-tab-btn ${purpose === 'signup' ? 'active' : ''}`} 
-            onClick={() => { setPurpose('signup'); setSent(false); setCode(''); setError(''); }}
+            onClick={() => { setPurpose('signup'); setSent(false); setCode(''); setDevCode(''); setError(''); }}
           >
             Register Facility
           </button>
@@ -120,6 +130,31 @@ export default function LoginScreen() {
             {sent && (
               <div className="form-group-block">
                 <p role="status">Code requested for {contact}. Enter the code you receive.</p>
+                {devCode && (
+                  <div style={{
+                    margin: '8px 0 14px',
+                    padding: '8px 12px',
+                    background: '#fff8e6',
+                    border: '1px solid #ffd57e',
+                    borderRadius: '4px',
+                    fontSize: '0.84rem',
+                    color: '#8c5d00',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px'
+                  }}>
+                    <span>Dev mode OTP: <strong style={{ letterSpacing: '2px', color: '#102a43' }}>{devCode}</strong></span>
+                    <button 
+                      type="button" 
+                      className="btn-link"
+                      style={{ fontSize: '0.8rem', color: '#8c5d00', fontWeight: 'bold' }}
+                      onClick={() => setCode(devCode)}
+                    >
+                      Autofill
+                    </button>
+                  </div>
+                )}
                 <label htmlFor="auth-code">Verification code</label>
                 <input 
                   id="auth-code" 
@@ -134,7 +169,7 @@ export default function LoginScreen() {
                 <button 
                   type="button" 
                   className="btn-link" 
-                  onClick={() => { setSent(false); setCode(''); }}
+                  onClick={() => { setSent(false); setCode(''); setDevCode(''); }}
                 >
                   Change contact or request another code
                 </button>
