@@ -1,10 +1,18 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import CADModelAnalyzer from '../../components/CADModelAnalyzer';
 
 export default function CADAnalyzerPage() {
   return (
-    <main className="container" style={{ padding: '1.5rem clamp(16px, 3vw, 48px) 4rem', minHeight: '85vh' }}>
-      <div style={{ height: '820px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #1c3552', boxShadow: '0 20px 48px rgba(0,0,0,0.4)' }}>
+    <main className="cad-analyzer-page">
+      <div className="cad-page-topbar">
+        <Link className="cad-page-back" to="/">
+          <span aria-hidden="true">←</span> ITOVA
+        </Link>
+        <span className="cad-page-context">MANUFACTURING INTELLIGENCE <span>/</span> ENGINEERING WORKSPACE</span>
+        <span className="cad-page-status"><span /> ANALYZER</span>
+      </div>
+      <div className="cad-analyzer-shell">
         <CADModelAnalyzer />
       </div>
     </main>

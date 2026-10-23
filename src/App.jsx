@@ -12,6 +12,7 @@ import CADAnalyzerPage from './pages/CADAnalyzer/CADAnalyzerPage';
 export default function App() {
   const { currentUser, authChecked, dbLoading } = useApp();
   const location = useLocation();
+  const isCadAnalyzerPage = location.pathname === '/cad-analyzer';
 
   // Scroll to top on view change
   useEffect(() => {
@@ -24,7 +25,7 @@ export default function App() {
   if (!currentUser) {
     return (
       <div className="app-root">
-        <Navbar />
+        {!isCadAnalyzerPage && <Navbar />}
         <Routes>
           <Route path="/cad-analyzer" element={<CADAnalyzerPage />} />
           <Route path="*" element={<LoginScreen />} />
@@ -43,7 +44,7 @@ export default function App() {
 
   return (
     <div className="app-root">
-      <Navbar />
+      {!isCadAnalyzerPage && <Navbar />}
 
       <Routes>
         <Route path="/" element={<Navigate to="/vendor" replace />} />

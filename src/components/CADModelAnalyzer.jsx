@@ -236,12 +236,12 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
         <div className="cad-header-left">
           <div className="cad-title-badge">
             <span className="cad-engine-pill">
-              {analysisMeta?.source === 'sample-preset' ? 'Sample CAD Plan' : 'AI Precision CAM'}
+              {analysisMeta?.source === 'sample-preset' ? 'Sample plan' : 'Manufacturing workspace'}
             </span>
-            <h1>CAD Drawing &amp; Manufacturing Process Analyzer</h1>
+            <h1>CAD drawing analyzer</h1>
           </div>
           <p className="cad-header-sub">
-            Deconstruct 2D drawings into complete CNC operations, required cutting tools, and machine allocations with visual drawing subordination.
+            Turn engineering drawings into clear operation plans, tooling lists, and machine requirements.
           </p>
         </div>
 
@@ -253,9 +253,10 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
               id="preset-select"
               value={selectedPresetId}
               onChange={(e) => handlePresetSelect(e.target.value)}
-              disabled={analyzing}
+              disabled={analyzing || presets.length === 0}
               className="cad-select-input"
             >
+              {presets.length === 0 && <option value="">{analysisError ? 'Samples unavailable' : 'Loading samples…'}</option>}
               {presets.map(p => (
                 <option key={p.id} value={p.id}>{p.title} ({p.drawingNo})</option>
               ))}
@@ -270,7 +271,7 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
             onClick={() => fileInputRef.current?.click()}
             disabled={analyzing}
           >
-            <span>📁 Upload Drawing</span>
+            <span>Upload drawing</span>
           </button>
           <input
             type="file"
@@ -287,7 +288,7 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
             onClick={() => runAnalysis(selectedPresetId === 'custom' ? null : selectedPresetId, uploadedImage, uploadedMimeType)}
             disabled={analyzing}
           >
-            {analyzing ? 'Analyzing CAD...' : '⚡ Re-Run Model'}
+            {analyzing ? 'Analyzing…' : analysisReport ? 'Run analysis again' : 'Run analysis'}
           </button>
 
           {onClose && (
@@ -376,6 +377,21 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                 </div>
               )}
 
+              {!drawingSvg && !uploadedImage && (
+                <div className="cad-drawing-placeholder" aria-live="polite">
+                  <span className="cad-placeholder-icon" aria-hidden="true">
+                    <svg viewBox="0 0 48 48" fill="none">
+                      <path d="M12 5.5h16l8 8V42H12a3 3 0 0 1-3-3V8.5a3 3 0 0 1 3-3Z" />
+                      <path d="M28 5.5v9h8M16 23h16M16 29h10M16 35h7" />
+                      <circle cx="34" cy="34" r="7" />
+                      <path d="m39 39 4 4" />
+                    </svg>
+                  </span>
+                  <strong>{analyzing ? 'Preparing drawing preview' : 'Your drawing preview appears here'}</strong>
+                  <span>Choose a sample above or upload a PDF, PNG, JPG, or WEBP engineering drawing.</span>
+                </div>
+              )}
+
               {/* Subordinated Balloon Pins Overlaid on Drawing */}
               {analysisReport?.operations?.map((op) => {
                 const ref = op.subordinatedDrawingRef;
@@ -419,15 +435,21 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
 
           {/* Canvas Bottom Legend */}
           <div className="cad-canvas-footer-legend">
-            <span className="legend-item">
-              <span className="legend-dot" style={{ background: '#e12d39' }} /> Subordinated Drawing Balloon Callouts (Click to inspect operation)
-            </span>
-            <span className="legend-item">
-              <span className="legend-badge">Material</span> {analysisReport?.material || 'Not identified'}
-            </span>
-            <span className="legend-item">
-              <span className="legend-badge">Stock Size</span> {analysisReport?.rawStock || 'Not identified'}
-            </span>
+            {analysisReport ? (
+              <>
+                <span className="legend-item">
+                  <span className="legend-dot" style={{ background: '#e12d39' }} /> Drawing callouts · select one to inspect its operation
+                </span>
+                <span className="legend-item">
+                  <span className="legend-badge">Material</span> {analysisReport.material || 'Not identified'}
+                </span>
+                <span className="legend-item">
+                  <span className="legend-badge">Stock size</span> {analysisReport.rawStock || 'Not identified'}
+                </span>
+              </>
+            ) : (
+              <span className="cad-supported-files">PDF, PNG, JPG, or WEBP <span>·</span> Up to 8 MB</span>
+            )}
           </div>
         </div>
 
@@ -435,8 +457,8 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
         <div className={`cad-details-panel-card ${analysisReport ? '' : 'empty'}`}>
           {!analysisReport && (
             <div className="cad-analyzer-empty" role={analysisError ? 'alert' : 'status'}>
-              <strong>{analyzing ? 'Analyzing drawing…' : 'No analysis available'}</strong>
-              <span>{analysisError || 'Choose a sample drawing or upload a supported engineering drawing to begin.'}</span>
+              <strong>{analyzing ? 'Building your manufacturing plan' : 'Your process plan appears here'}</strong>
+              <span>{analysisError ? 'The analyzer could not reach its sample service. Retry, or upload a drawing when the service is available.' : 'Choose a sample or upload a drawing to generate operations, tooling, and machine requirements.'}</span>
               {analysisError && (
                 <button
                   type="button"
