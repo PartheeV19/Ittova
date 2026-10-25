@@ -747,7 +747,7 @@ export const SAMPLE_CAD_DRAWINGS = [
   }
 ];
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 const MAX_DRAWING_BYTES = 8 * 1024 * 1024;
 const ALLOWED_DRAWING_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'application/pdf']);
 
@@ -1017,12 +1017,17 @@ Be extremely thorough, technical, and accurate. Make sure each operation clearly
     ],
     generationConfig: {
       responseMimeType: 'application/json',
-      temperature: 0.2
+      temperature: 0.2,
+      maxOutputTokens: 4096
     }
   };
 
+  const TIMEOUT_MS = 180000; // 3 minutes — vision + structured JSON can be slow
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  const timeoutId = setTimeout(() => {
+    console.warn('[cad-analyzer] Gemini request timed out after 3 minutes.');
+    controller.abort();
+  }, TIMEOUT_MS);
 
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
@@ -1035,9 +1040,9 @@ Be extremely thorough, technical, and accurate. Make sure each operation clearly
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      await res.text().catch(() => '');
-      console.warn(`[cad-analyzer] Gemini API returned HTTP ${res.status}.`);
-      throw httpError(502, 'The drawing could not be analyzed by the vision service. Please try again later.');
+      const errBody = await res.text().catch(() => '');
+      console.warn(`[cad-analyzer] Gemini API returned HTTP ${res.status}: ${errBody}`);
+      throw httpError(502, `The drawing could not be analyzed by the vision service (HTTP ${res.status}). Please try again later.`);
     }
 
     const data = await res.json();
@@ -1048,7 +1053,7 @@ Be extremely thorough, technical, and accurate. Make sure each operation clearly
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      throw httpError(504, 'Drawing analysis took too long. Try a smaller or clearer drawing.');
+      throw httpError(504, 'Drawing analysis took too long (>3 min). Try a smaller or lower-resolution drawing.');
     }
     if (err.statusCode) throw err;
     throw httpError(502, 'The vision service returned an invalid response. Please try again later.');

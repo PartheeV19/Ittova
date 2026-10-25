@@ -1,4 +1,4 @@
-import { Router } from 'express';
+  import { Router } from 'express';
 import { analyzeCadDrawing, SAMPLE_CAD_DRAWINGS } from '../services/cad-analyzer.service.js';
 
 const router = Router();
@@ -8,7 +8,7 @@ const router = Router();
  * List all available preset CAD blueprints and drawings
  */
 router.get('/presets', (_req, res) => {
-  const presets = SAMPLE_CAD_DRAWINGS.map(p => ({
+  const presets = SAMPLE_CAD_DRAWINGS.map(p => ({ 
     id: p.id,
     title: p.title,
     drawingNo: p.drawingNo,

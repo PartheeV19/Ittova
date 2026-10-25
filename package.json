@@ -4,7 +4,7 @@
   "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently --kill-others-on-fail --names \"server,client\" --prefix-colors \"yellow,cyan\" \"npm run server:dev\" \"vite\"",
     "build": "vite build",
     "preview": "vite preview",
     "server:dev": "node --watch server/src/index.js",
@@ -29,6 +29,7 @@
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^10.0.6",
     "vite": "^5.4.2"
   }
 }

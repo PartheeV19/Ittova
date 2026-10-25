@@ -1,6 +1,64 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 
+// Sleek engineering SVG icons
+const PinIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);
+
+const ClockIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+
+const MachineIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+  </svg>
+);
+
+const ToolIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+  </svg>
+);
+
+const GaugeIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" />
+    <path d="m14 10-4 4" />
+    <circle cx="12" cy="12" r="1" />
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+const InsightIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9 18h6" />
+    <path d="M10 22h4" />
+    <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
+  </svg>
+);
+
+const TargetIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="6" />
+    <circle cx="12" cy="12" r="2" />
+  </svg>
+);
+
 export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-drive', onClose }) {
   const { showToast } = useApp();
   const [presets, setPresets] = useState([]);
@@ -515,18 +573,28 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
           {activeTab === 'operations' && (
             <div className="cad-tab-content-scroll">
               <div className="cad-op-summary-bar">
-                <span>Total Manufacturing Steps: <strong>{analysisReport?.operations?.length || 0}</strong></span>
-                <span>Est. Total Cycle Time: <strong>{(analysisReport?.operations?.reduce((acc, o) => acc + (o.estimatedCycleTimeSec || 0), 0) / 60).toFixed(1)} mins</strong></span>
+                <div className="op-summary-stat">
+                  <span className="stat-label">Total Operations</span>
+                  <strong className="stat-value">{analysisReport?.operations?.length || 0} Steps</strong>
+                </div>
+                <div className="op-summary-divider" />
+                <div className="op-summary-stat">
+                  <span className="stat-label">Estimated Routing Time</span>
+                  <strong className="stat-value">
+                    {(analysisReport?.operations?.reduce((acc, o) => acc + (o.estimatedCycleTimeSec || 0), 0) / 60).toFixed(1)} min
+                  </strong>
+                </div>
               </div>
 
               {/* Visual Process Flow Strip */}
               <div className="cad-process-flow-strip">
                 {analysisReport?.operations?.map((op, idx) => {
                   const isActive = selectedOpNumber === op.opNumber;
-                  const categoryIcon = {
-                    'Turning': '🔩', 'Milling': '⚙️', 'Drilling': '🔧', 'Grinding': '💎',
-                    'Inspection': '📐', 'Finishing': '🔥', 'EDM': '⚡', 'Welding': '🔥'
-                  }[op.machineCategory] || '⚙️';
+                  const catCode = {
+                    'Turning': 'TURN', 'Milling': 'MILL', 'Drilling': 'DRIL', 'Grinding': 'GRND',
+                    'Inspection': 'INSP', 'Finishing': 'FIN', 'EDM': 'EDM', 'Welding': 'WELD'
+                  }[op.machineCategory] || 'PROC';
+
                   return (
                     <React.Fragment key={op.opNumber}>
                       <button
@@ -535,12 +603,11 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                         onClick={() => handleSelectOperation(op.opNumber)}
                         title={`${op.opNumber}: ${op.name}`}
                       >
-                        <span className="flow-node-icon">{categoryIcon}</span>
+                        <span className="flow-node-cat">{catCode}</span>
                         <span className="flow-node-label">{op.opNumber}</span>
-                        <span className="flow-node-cat">{op.machineCategory}</span>
                       </button>
                       {idx < (analysisReport.operations.length - 1) && (
-                        <span className="flow-connector">→</span>
+                        <span className="flow-connector" aria-hidden="true">→</span>
                       )}
                     </React.Fragment>
                   );
@@ -559,32 +626,48 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                       className={`cad-operation-card ${isSelected ? 'active' : ''}`}
                       onClick={() => handleSelectOperation(op.opNumber)}
                     >
+                      {/* Top Header Row */}
                       <div className="op-card-header">
-                        <div className="op-card-title-group">
+                        <div className="op-card-header-left">
                           <span className="op-seq-badge">{op.opNumber}</span>
+                          <span className="op-category-pill">{op.machineCategory}</span>
                           <span className="op-stage-pill">{op.stage}</span>
-                          <h3 className="op-title-text">{op.name}</h3>
                         </div>
 
-                        {balloonNo && (
-                          <div
-                            className="op-balloon-link-badge"
-                            title="Subordinated to drawing feature"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelectBalloon(balloonNo);
-                            }}
-                          >
-                            <span className="op-balloon-icon">📍</span>
-                            <span>Drawing Balloon #{balloonNo}</span>
-                          </div>
-                        )}
+                        <div className="op-card-header-right">
+                          {op.estimatedCycleTimeSec > 0 && (
+                            <span className="op-time-badge" title="Estimated operation cycle time">
+                              <ClockIcon />
+                              <span>{Math.round(op.estimatedCycleTimeSec)}s</span>
+                            </span>
+                          )}
+
+                          {balloonNo && (
+                            <button
+                              type="button"
+                              className="op-balloon-link-badge"
+                              title="Locate feature callout on drawing"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectBalloon(balloonNo);
+                              }}
+                            >
+                              <PinIcon />
+                              <span>Callout #{balloonNo}</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
+
+                      <h3 className="op-title-text">{op.name}</h3>
 
                       {/* Subordinated Feature Callout */}
                       {op.subordinatedDrawingRef && (
                         <div className="op-subordinated-feature-box">
-                          <strong>Drawing Callout:</strong> {op.subordinatedDrawingRef.feature}
+                          <div className="feature-info-row">
+                            <span className="feature-prefix">Drawing Feature:</span>
+                            <span className="feature-desc">{op.subordinatedDrawingRef.feature}</span>
+                          </div>
                           {op.subordinatedDrawingRef.tolerance && (
                             <span className="op-tolerance-tag">Tol: {op.subordinatedDrawingRef.tolerance}</span>
                           )}
@@ -594,26 +677,33 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                       {/* Machine & Tool Details Grid */}
                       <div className="op-specs-grid">
                         <div className="op-spec-item">
-                          <span className="spec-label">Machine Required:</span>
-                          <span className="spec-value machine-highlight">
-                            {op.machine}
-                          </span>
+                          <div className="spec-label-row">
+                            <MachineIcon />
+                            <span className="spec-label">Machine Required</span>
+                          </div>
+                          <span className="spec-value">{op.machine}</span>
                         </div>
 
                         <div className="op-spec-item">
-                          <span className="spec-label">Cutting Tool &amp; Inserts:</span>
-                          <span className="spec-value tool-highlight">
-                            {op.tooling}
-                          </span>
+                          <div className="spec-label-row">
+                            <ToolIcon />
+                            <span className="spec-label">Cutting Tooling</span>
+                          </div>
+                          <span className="spec-value">{op.tooling}</span>
                         </div>
 
                         <div className="op-spec-item">
-                          <span className="spec-label">Fixturing &amp; Workholding:</span>
+                          <div className="spec-label-row">
+                            <span className="spec-label">Fixturing &amp; Workholding</span>
+                          </div>
                           <span className="spec-value">{op.fixturing || 'Standard Vise / 3-Jaw Chuck'}</span>
                         </div>
 
                         <div className="op-spec-item">
-                          <span className="spec-label">Quality Inspection Gauge:</span>
+                          <div className="spec-label-row">
+                            <GaugeIcon />
+                            <span className="spec-label">Quality Metrology</span>
+                          </div>
                           <span className="spec-value">{op.inspectionTool}</span>
                         </div>
                       </div>
@@ -621,14 +711,29 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                       {/* Cutting Parameters Strip */}
                       {op.cuttingParams && (
                         <div className="op-cutting-params-strip">
-                          <span className="param-label">Cutting Parameters:</span>
-                          {op.cuttingParams.speed && <span className="param-item">Vc: <strong>{op.cuttingParams.speed}</strong></span>}
-                          {op.cuttingParams.rpm && <span className="param-item">RPM: <strong>{op.cuttingParams.rpm}</strong></span>}
-                          {op.cuttingParams.feed && <span className="param-item">Feed: <strong>{op.cuttingParams.feed}</strong></span>}
-                          {op.cuttingParams.doc && <span className="param-item">ap: <strong>{op.cuttingParams.doc}</strong></span>}
-                          {op.estimatedCycleTimeSec && (
-                            <span className="param-item param-time">⏱ {Math.round(op.estimatedCycleTimeSec)}s</span>
-                          )}
+                          <span className="param-label">Machining Telemetry:</span>
+                          <div className="param-chips-row">
+                            {op.cuttingParams.speed && (
+                              <span className="param-item">
+                                <span className="param-key">Vc</span> {op.cuttingParams.speed}
+                              </span>
+                            )}
+                            {op.cuttingParams.rpm && (
+                              <span className="param-item">
+                                <span className="param-key">n</span> {op.cuttingParams.rpm}
+                              </span>
+                            )}
+                            {op.cuttingParams.feed && (
+                              <span className="param-item">
+                                <span className="param-key">f</span> {op.cuttingParams.feed}
+                              </span>
+                            )}
+                            {op.cuttingParams.doc && (
+                              <span className="param-item">
+                                <span className="param-key">ap</span> {op.cuttingParams.doc}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       )}
                     </article>
@@ -650,20 +755,22 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                 {analysisReport?.machinesSummary?.map((m, idx) => (
                   <div key={idx} className="cad-machine-card">
                     <div className="machine-card-header">
-                      <div className="machine-icon-box">⚙️</div>
-                      <div>
+                      <div className="machine-icon-box">
+                        <MachineIcon />
+                      </div>
+                      <div className="machine-title-group">
                         <h4>{m.machineName}</h4>
-                        <span className="vendor-suitability-pill">{m.suitabilityScore || '95% ITTOVA Vendor Match'}</span>
+                        <span className="vendor-suitability-pill">{m.suitabilityScore || 'Qualified Vendor Spec'}</span>
                       </div>
                     </div>
 
                     <div className="machine-specs-section">
-                      <span className="specs-subheading">Required Technical Specifications:</span>
+                      <span className="specs-subheading">Technical Specifications</span>
                       <p className="specs-text">{m.requiredSpecs}</p>
                     </div>
 
                     <div className="machine-ops-tags">
-                      <span className="specs-subheading">Operations Allocated:</span>
+                      <span className="specs-subheading">Allocated Operations</span>
                       <div className="ops-chips-wrap">
                         {m.operationsPerformed?.map((opName, oIdx) => (
                           <span key={oIdx} className="op-chip">{opName}</span>
@@ -698,8 +805,8 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                     {analysisReport?.toolingSummary?.map((t, idx) => (
                       <tr key={idx}>
                         <td><span className="tool-category-badge">{t.toolCategory}</span></td>
-                        <td><strong>{t.toolCode}</strong></td>
-                        <td>{t.coating || 'TiAlN / Polished'}</td>
+                        <td><strong className="tool-code-mono">{t.toolCode}</strong></td>
+                        <td><span className="tool-coating-text">{t.coating || 'Standard / Uncoated'}</span></td>
                         <td>{t.purpose}</td>
                       </tr>
                     ))}
@@ -719,12 +826,15 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
 
               {/* Critical Tolerances Card */}
               <div className="cad-dfm-section">
-                <h4>🎯 Critical Drawing Tolerances Identified</h4>
+                <div className="dfm-section-header">
+                  <TargetIcon />
+                  <h4>Critical Drawing Tolerances Identified</h4>
+                </div>
                 <div className="critical-tols-list">
                   {analysisReport?.criticalTolerances?.map((tol, idx) => (
                     <div key={idx} className="tol-badge-card">
-                      <span className="tol-check">✓</span>
-                      <span>{tol}</span>
+                      <span className="tol-check"><CheckIcon /></span>
+                      <span className="tol-text">{tol}</span>
                     </div>
                   ))}
                 </div>
@@ -732,11 +842,14 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
 
               {/* Engineering Recommendations */}
               <div className="cad-dfm-section">
-                <h4>🛠 Process Optimization &amp; Tooling Notes</h4>
+                <div className="dfm-section-header">
+                  <InsightIcon />
+                  <h4>Process Optimization &amp; Tooling Notes</h4>
+                </div>
                 <div className="dfm-recommendations-list">
                   {analysisReport?.dfmRecommendations?.map((rec, idx) => (
                     <div key={idx} className="dfm-rec-item">
-                      <span className="dfm-icon">💡</span>
+                      <span className="dfm-bullet" aria-hidden="true">•</span>
                       <p>{rec}</p>
                     </div>
                   ))}
@@ -763,14 +876,15 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                     categories[cat].push(op);
                   });
                   return Object.entries(categories).map(([cat, ops]) => {
-                    const catIcon = {
-                      'Turning': '🔩', 'Milling': '⚙️', 'Drilling': '🔧', 'Grinding': '💎',
-                      'Inspection': '📐', 'Finishing': '🔥', 'EDM': '⚡', 'Welding': '🔥'
-                    }[cat] || '⚙️';
+                    const catCode = {
+                      'Turning': 'TURN', 'Milling': 'MILL', 'Drilling': 'DRIL', 'Grinding': 'GRND',
+                      'Inspection': 'INSP', 'Finishing': 'FIN', 'EDM': 'EDM', 'Welding': 'WELD'
+                    }[cat] || 'PROC';
+
                     return (
                       <div key={cat} className="flow-swimlane">
                         <div className="swimlane-header">
-                          <span className="swimlane-icon">{catIcon}</span>
+                          <span className="swimlane-cat-code">{catCode}</span>
                           <span className="swimlane-title">{cat}</span>
                           <span className="swimlane-count">{ops.length} ops</span>
                         </div>
@@ -783,7 +897,12 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                             >
                               <div className="swim-op-header">
                                 <span className="swim-op-badge">{op.opNumber}</span>
-                                <span className="swim-op-time">⏱ {Math.round(op.estimatedCycleTimeSec || 0)}s</span>
+                                {op.estimatedCycleTimeSec > 0 && (
+                                  <span className="swim-op-time">
+                                    <ClockIcon />
+                                    <span>{Math.round(op.estimatedCycleTimeSec)}s</span>
+                                  </span>
+                                )}
                               </div>
                               <h4 className="swim-op-name">{op.name}</h4>
                               <p className="swim-op-machine">{op.machine.split('(')[0].trim()}</p>
