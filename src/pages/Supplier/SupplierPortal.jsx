@@ -892,8 +892,11 @@ export default function SupplierPortal() {
                       Physical plant audit records conducted by ITTOVA Central Verification Engineering.
                     </p>
                   </div>
-                  <span className="badge badge-approved" style={{ fontSize: '0.82rem', padding: '6px 12px' }}>
-                    Status: VERIFIED &amp; CLEARED
+                  <span 
+                    className={activeVendor?.status === 'APPROVED' ? 'badge badge-approved' : 'badge badge-warning'} 
+                    style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+                  >
+                    Status: {activeVendor?.status === 'APPROVED' ? 'VERIFIED & CLEARED' : 'PENDING AUDIT REVIEW'}
                   </span>
                 </div>
 
@@ -907,13 +910,15 @@ export default function SupplierPortal() {
 
                   <div style={{ background: 'var(--paper)', padding: '14px', borderRadius: 'var(--r-xs)', border: '1px solid var(--line)' }}>
                     <div style={{ fontSize: '0.74rem', color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase' }}>Audit Score &amp; Standards</div>
-                    <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#16a34a', marginTop: '4px' }}>
-                      {activeVendor.auditScore || '96/100 (ISO 9001:2015)'}
+                    <div style={{ fontWeight: 800, fontSize: '1.15rem', color: activeVendor?.status === 'APPROVED' ? '#16a34a' : 'var(--accent-orange, #d97706)', marginTop: '4px' }}>
+                      {activeVendor?.status === 'APPROVED' ? (activeVendor.auditScore || '96/100 (ISO 9001:2015)') : 'Pending Physical Verification'}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                      Lead Auditor: <strong>V. Kumar</strong> (Vendor Audit Officer)
+                      Lead Auditor: <strong>{activeVendor?.status === 'APPROVED' ? 'V. Kumar (Vendor Audit Officer)' : 'Central Verification Bureau'}</strong>
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Calibration: Valid through Dec 2027</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                      Calibration: {activeVendor?.status === 'APPROVED' ? 'Valid through Dec 2027' : 'Inspection in Queue'}
+                    </div>
                   </div>
 
                   <div style={{ background: 'var(--paper)', padding: '14px', borderRadius: 'var(--r-xs)', border: '1px solid var(--line)' }}>

@@ -6,11 +6,35 @@ import { ensureAccountPublicId } from '../auth/user-id.js';
 
 const router = Router();
 
-function newMachineId() {
-  return `M-${randomInt(100, 999)}`;
+async function newMachineId(pool) {
+  for (let i = 0; i < 5; i++) {
+    const candidate = `M-${randomInt(10000, 99999)}`;
+    const check = await pool.query('SELECT 1 FROM vendor_machines WHERE id = $1', [candidate]);
+    if (check.rowCount === 0) return candidate;
+  }
+  return `M-${Date.now().toString().slice(-5)}${randomInt(10, 99)}`;
 }
 
 function toApiShape(row, machines = []) {
+  const profile = { ...(row.profile || {}) };
+  // Never let stale profile.machines JSON override authoritative vendor_machines table rows
+  delete profile.machines;
+
+  const normalizedMachines = machines.map((m) => {
+    const details = typeof m.details === 'object' && m.details !== null ? m.details : {};
+    const rate = m.hourly_rate ?? details.rate ?? details.hourlyRate ?? null;
+    return {
+      id: m.id,
+      name: m.name,
+      process: m.process,
+      hourlyRate: rate,
+      rate: rate,
+      availabilityStatus: m.availability_status || 'idle',
+      status: m.availability_status === 'idle' ? 'Idle' : m.availability_status,
+      ...details
+    };
+  });
+
   return {
     id: row.id,
     name: row.name,
@@ -19,15 +43,8 @@ function toApiShape(row, machines = []) {
     location: row.location,
     status: row.status,
     auditScore: row.audit_score,
-    machines: machines.map((m) => ({
-      id: m.id,
-      name: m.name,
-      process: m.process,
-      hourlyRate: m.hourly_rate,
-      availabilityStatus: m.availability_status,
-      ...m.details
-    })),
-    ...row.profile,
+    ...profile,
+    machines: normalizedMachines,
     createdAt: row.created_at
   };
 }
@@ -39,7 +56,7 @@ async function loadMachines(pool, vendorId) {
 
 // Create the vendor/supplier profile for the signed-in account.
 router.post('/', requireAuth, requireRole('supplier'), async (request, response) => {
-  const { name, email, phone, location, accountLocation, ...profileFields } = request.body || {};
+  const { name, email, phone, location, accountLocation, machines: initialMachines, ...profileFields } = request.body || {};
   if (!name) {
     return response.status(400).json({ error: 'A facility name is required.' });
   }
@@ -50,9 +67,12 @@ router.post('/', requireAuth, requireRole('supplier'), async (request, response)
     return response.json(toApiShape(existing.rows[0], await loadMachines(pool, existing.rows[0].id)));
   }
 
-  const identity = await ensureAccountPublicId(pool, request.user.accountId, accountLocation);
-  if (identity.error) return response.status(400).json({ error: identity.error });
-  const id = identity.publicId || request.user.publicId;
+  let id = request.user.publicId;
+  if (!id) {
+    const identity = await ensureAccountPublicId(pool, request.user.accountId, accountLocation);
+    if (identity.error) return response.status(400).json({ error: identity.error });
+    id = identity.publicId;
+  }
   const inserted = await pool.query(
     `INSERT INTO vendors (id, account_id, name, email, phone, location, status, audit_score, profile)
      VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', 'Pending Physical Audit', $7)
@@ -61,12 +81,27 @@ router.post('/', requireAuth, requireRole('supplier'), async (request, response)
     [id, request.user.accountId, name, email || null, phone || null, location || null, JSON.stringify(profileFields)]
   );
 
-  if (!inserted.rowCount) {
-    const concurrent = await pool.query('SELECT * FROM vendors WHERE account_id = $1', [request.user.accountId]);
-    return response.json(toApiShape(concurrent.rows[0], await loadMachines(pool, concurrent.rows[0].id)));
+  const vendorRow = inserted.rowCount ? inserted.rows[0] : (await pool.query('SELECT * FROM vendors WHERE account_id = $1', [request.user.accountId])).rows[0];
+  const vendorId = vendorRow.id;
+
+  // If initial machines were submitted, persist them in vendor_machines table
+  if (Array.isArray(initialMachines)) {
+    for (const m of initialMachines) {
+      if (m && m.name && m.process) {
+        const rate = m.rate || m.hourlyRate ? Number(m.rate || m.hourlyRate) : null;
+        const machineId = m.id || (await newMachineId(pool));
+        await pool.query(
+          `INSERT INTO vendor_machines (id, vendor_id, name, process, hourly_rate, availability_status, details)
+           VALUES ($1, $2, $3, $4, $5, 'idle', $6)
+           ON CONFLICT (id) DO NOTHING`,
+          [machineId, vendorId, m.name, m.process, rate, JSON.stringify(m)]
+        );
+      }
+    }
   }
 
-  response.status(201).json(toApiShape(inserted.rows[0], []));
+  const finalMachines = await loadMachines(pool, vendorId);
+  response.status(inserted.rowCount ? 201 : 200).json(toApiShape(vendorRow, finalMachines));
 });
 
 // Public-ish listing for RFQ matching; staff/admin see everything, everyone
@@ -129,16 +164,18 @@ router.post('/:id/machines', requireAuth, requireRole('supplier'), async (reques
     return response.status(403).json({ error: 'You can only add machines to your own facility.' });
   }
 
-  const { name, process, hourlyRate, ...details } = request.body || {};
+  const { name, process, hourlyRate, rate, ...details } = request.body || {};
   if (!name || !process) {
     return response.status(400).json({ error: 'Machine name and process are required.' });
   }
 
+  const effectiveRate = hourlyRate ? Number(hourlyRate) : rate ? Number(rate) : null;
+  const machineId = await newMachineId(pool);
   const inserted = await pool.query(
     `INSERT INTO vendor_machines (id, vendor_id, name, process, hourly_rate, availability_status, details)
      VALUES ($1, $2, $3, $4, $5, 'idle', $6)
      RETURNING *`,
-    [newMachineId(), request.params.id, name, process, hourlyRate ? Number(hourlyRate) : null, JSON.stringify(details)]
+    [machineId, request.params.id, name, process, effectiveRate, JSON.stringify({ rate: effectiveRate, ...details })]
   );
 
   const machine = inserted.rows[0];
@@ -147,7 +184,9 @@ router.post('/:id/machines', requireAuth, requireRole('supplier'), async (reques
     name: machine.name,
     process: machine.process,
     hourlyRate: machine.hourly_rate,
+    rate: machine.hourly_rate,
     availabilityStatus: machine.availability_status,
+    status: 'Idle',
     ...machine.details
   });
 });

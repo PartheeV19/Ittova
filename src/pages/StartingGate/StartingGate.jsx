@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 
 import { useApp } from '../../context/AppContext';
 
-export default function StartingGate({ onComplete }) {
+export default function StartingGate({ onComplete = () => { } }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -29,7 +29,8 @@ export default function StartingGate({ onComplete }) {
   };
   const [otpError, setOtpError] = useState('');
   const [resendAt, setResendAt] = useState(0);
-  const resetOtp = () => { setSentTo(''); setCode(''); setOtpError(''); };
+  const [devCode, setDevCode] = useState('');
+  const resetOtp = () => { setSentTo(''); setCode(''); setOtpError(''); setDevCode(''); };
   const [errors, setErrors] = useState({});
 
   const updateField = (field, value) => {
@@ -61,12 +62,10 @@ export default function StartingGate({ onComplete }) {
       return;
     }
 
-    const role = formData.role.includes('Buyer') ? 'customer'
-      : /Manufacturing|Raw Material/.test(formData.role) ? 'supplier' : null;
-    if (!role) {
-      setOtpError('OTP access is currently available for customers and vendors. Please select the relevant participant role.');
-      return;
-    }
+    const role = formData.role.includes('Bank') ? 'finance_partner'
+      : formData.role.includes('Raw Material') ? 'material_partner'
+      : formData.role.includes('Manufacturing') ? 'supplier'
+      : 'customer';
     const email = formData.email.trim().toLowerCase();
     const phone = formData.phone.trim() ? formData.phone.replace(/[\s().-]/g, '') : '';
     if (codeComplete && !sentTo) {
@@ -89,6 +88,7 @@ export default function StartingGate({ onComplete }) {
         setSentTo({ email, phone });
         setCode('');
         setResendAt(Date.now() + 60000);
+        if (result?.devCode) setDevCode(result.devCode);
       } else {
         const result = await verifyOtp(sentTo.email, code, role, {
           profile: {
@@ -132,10 +132,10 @@ export default function StartingGate({ onComplete }) {
           {/* Left Column: Context & Industrial Credentials */}
           <div className="gate-intro-col">
             <h1 className="gate-title" style={{ marginTop: 0, fontSize: '2rem' }}>
-              Welcome to IT<span className="brand-accent-o">O</span>VA
+              Welcome to <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span>
             </h1>
             <p className="gate-description">
-              ITOVA provides an accountable, traceable execution layer connecting engineering buyers, 
+              <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span> provides an accountable, traceable execution layer connecting engineering buyers,
               verified manufacturing facilities, raw material suppliers, and operations inspection hubs.
             </p>
 
@@ -144,7 +144,7 @@ export default function StartingGate({ onComplete }) {
               <div className="gate-feature-card">
                 <div className="gate-feature-icon">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+                    <rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
                   </svg>
                 </div>
                 <div>
@@ -156,7 +156,7 @@ export default function StartingGate({ onComplete }) {
               <div className="gate-feature-card">
                 <div className="gate-feature-icon">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
                 </div>
                 <div>
@@ -168,7 +168,7 @@ export default function StartingGate({ onComplete }) {
               <div className="gate-feature-card">
                 <div className="gate-feature-icon">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                   </svg>
                 </div>
                 <div>
@@ -193,130 +193,154 @@ export default function StartingGate({ onComplete }) {
 
               <form onSubmit={handleSubmit} className="gate-form-body" aria-busy={busy}>
                 <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-                <div className="form-group-block">
-                  <label htmlFor="gate-name">
-                    Full Name <span className="text-red">*</span>
-                  </label>
-                  <input
-                    id="gate-name"
-                    autoComplete="name"
-                    aria-required="true"
-                    aria-invalid={Boolean(errors.name)}
-                    aria-describedby={errors.name ? "gate-name-error" : undefined}
-                    type="text"
-                    value={formData.name}
-                    onChange={e => updateField('name', e.target.value)}
-                    className={errors.name ? 'input-error' : ''}
-                  />
-                  {errors.name && <span id="gate-name-error" role="alert" className="field-error-msg">{errors.name}</span>}
-                </div>
-
-                <div className="grid-2" style={{ gap: '12px' }}>
                   <div className="form-group-block">
-                    <label htmlFor="gate-email">
-                      Official Work Email <span className="text-red">*</span>
+                    <label htmlFor="gate-name">
+                      Full Name <span className="text-red">*</span>
                     </label>
                     <input
-                      id="gate-email"
-                    autoComplete="email"
-                    aria-required="true"
-                    aria-invalid={Boolean(errors.email)}
-                    aria-describedby={errors.email ? "gate-email-error" : undefined}
-                      type="email"
-                      value={formData.email}
-                      onChange={e => updateField('email', e.target.value)}
-                      className={errors.email ? 'input-error' : ''}
-                    />
-                    {errors.email && <span id="gate-email-error" role="alert" className="field-error-msg">{errors.email}</span>}
-                  </div>
-
-                  <div className="form-group-block">
-                    <label htmlFor="gate-phone">
-                      Mobile / Phone <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(optional for now)</span>
-                    </label>
-                    <input
-                      id="gate-phone"
-                      placeholder="+91 98765 43210"
-                    autoComplete="tel"
-                    aria-invalid={Boolean(errors.phone)}
-                    aria-describedby={errors.phone ? "gate-phone-error" : undefined}
+                      id="gate-name"
+                      autoComplete="name"
+                      aria-required="true"
+                      aria-invalid={Boolean(errors.name)}
+                      aria-describedby={errors.name ? "gate-name-error" : undefined}
                       type="text"
-                      value={formData.phone}
-                      onChange={e => updateField('phone', e.target.value)}
-                      className={errors.phone ? 'input-error' : ''}
+                      value={formData.name}
+                      onChange={e => updateField('name', e.target.value)}
+                      className={errors.name ? 'input-error' : ''}
                     />
-                    {errors.phone && <span id="gate-phone-error" role="alert" className="field-error-msg">{errors.phone}</span>}
+                    {errors.name && <span id="gate-name-error" role="alert" className="field-error-msg">{errors.name}</span>}
                   </div>
-                </div>
 
-                <div className="form-group-block">
-                  <label htmlFor="gate-company">
-                    Company / Enterprise Legal Name <span className="text-red">*</span>
-                  </label>
-                  <input
-                    id="gate-company"
-                    autoComplete="organization"
-                    aria-required="true"
-                    aria-invalid={Boolean(errors.company)}
-                    aria-describedby={errors.company ? "gate-company-error" : undefined}
-                    type="text"
-                    value={formData.company}
-                    onChange={e => updateField('company', e.target.value)}
-                    className={errors.company ? 'input-error' : ''}
-                  />
-                {errors.company && <span id="gate-company-error" role="alert" className="field-error-msg">{errors.company}</span>}
-                </div>
-
-                <div className="form-group-block">
-                  <label htmlFor="gate-role">
-                    Participant Role / Area of Interest <span className="text-red">*</span>
-                  </label>
-                  <select
-                    id="gate-role"
-                    value={formData.role}
-                    onChange={e => updateField('role', e.target.value)}
-                  >
-                    <option value="Industrial Buyer / OEM">Industrial Buyer / OEM (Procure Components &amp; Submit CAD)</option>
-                    <option value="Manufacturing Facility / Vendor">Manufacturing Facility / Machine Shop (CNC, Milling, Fabrication)</option>
-                    <option value="Raw Material & Testing Partner">Raw Material Trader &amp; Inspection Agency</option>
-                    <option value="Bank / NBFC Financier">Banking &amp; Financial Institution (Execution Finance)</option>
-                    <option value="Corporate Evaluator">Executive / Evaluator (Exploring Platform Capabilities)</option>
-                  </select>
-                </div>
-
-                <div className="gate-otp-row">
-                  <div className="gate-otp-boxes" role="group" aria-label="One-time password">
-                    {Array.from({ length: 6 }, (_, index) => (
+                  <div className="grid-2" style={{ gap: '12px' }}>
+                    <div className="form-group-block">
+                      <label htmlFor="gate-email">
+                        Official Work Email <span className="text-red">*</span>
+                      </label>
                       <input
-                        key={index}
-                        ref={element => { otpInputs.current[index] = element; }}
-                        aria-label={`OTP digit ${index + 1}`}
-                        aria-invalid={Boolean(otpError)}
-                        aria-describedby={otpError ? 'gate-otp-error' : undefined}
-                        inputMode="numeric"
-                        autoComplete={index === 0 ? 'one-time-code' : 'off'}
-                        value={code[index]?.trim() || ''}
-                        onFocus={e => e.target.select()}
-                        onChange={e => enterDigits(index, e.target.value)}
-                        onPaste={e => { e.preventDefault(); enterDigits(index, e.clipboardData.getData('text')); }}
-                        onKeyDown={e => {
-                          if (e.key === 'Backspace' && !code[index]?.trim() && index > 0) {
-                            e.preventDefault(); enterDigits(index - 1, ''); otpInputs.current[index - 1]?.focus();
-                          } else if (e.key === 'ArrowLeft' && index > 0) {
-                            e.preventDefault(); otpInputs.current[index - 1]?.focus();
-                          } else if (e.key === 'ArrowRight' && index < 5) {
-                            e.preventDefault(); otpInputs.current[index + 1]?.focus();
-                          }
-                        }}
+                        id="gate-email"
+                        autoComplete="email"
+                        aria-required="true"
+                        aria-invalid={Boolean(errors.email)}
+                        aria-describedby={errors.email ? "gate-email-error" : undefined}
+                        type="email"
+                        value={formData.email}
+                        onChange={e => updateField('email', e.target.value)}
+                        className={errors.email ? 'input-error' : ''}
                       />
-                    ))}
+                      {errors.email && <span id="gate-email-error" role="alert" className="field-error-msg">{errors.email}</span>}
+                    </div>
+
+                    <div className="form-group-block">
+                      <label htmlFor="gate-phone">
+                        Mobile / Phone <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(optional for now)</span>
+                      </label>
+                      <input
+                        id="gate-phone"
+                        placeholder="+91 98765 43210"
+                        autoComplete="tel"
+                        aria-invalid={Boolean(errors.phone)}
+                        aria-describedby={errors.phone ? "gate-phone-error" : undefined}
+                        type="text"
+                        value={formData.phone}
+                        onChange={e => updateField('phone', e.target.value)}
+                        className={errors.phone ? 'input-error' : ''}
+                      />
+                      {errors.phone && <span id="gate-phone-error" role="alert" className="field-error-msg">{errors.phone}</span>}
+                    </div>
                   </div>
-                  <button type="submit" className="btn btn-dark btn-sm" disabled={busy}>
-                    {busy ? 'Please wait...' : codeComplete ? 'Submit OTP' : 'Get OTP'}
-                  </button>
-                </div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '8px 0 0' }}>You will receive the OTP by email{formData.phone.trim() ? ' and SMS, if configured' : ''}.</p>
-                {otpError && <p id="gate-otp-error" role="alert" className="field-error-msg">{otpError}</p>}
+
+                  <div className="form-group-block">
+                    <label htmlFor="gate-company">
+                      Company / Enterprise Legal Name <span className="text-red">*</span>
+                    </label>
+                    <input
+                      id="gate-company"
+                      autoComplete="organization"
+                      aria-required="true"
+                      aria-invalid={Boolean(errors.company)}
+                      aria-describedby={errors.company ? "gate-company-error" : undefined}
+                      type="text"
+                      value={formData.company}
+                      onChange={e => updateField('company', e.target.value)}
+                      className={errors.company ? 'input-error' : ''}
+                    />
+                    {errors.company && <span id="gate-company-error" role="alert" className="field-error-msg">{errors.company}</span>}
+                  </div>
+
+                  <div className="form-group-block">
+                    <label htmlFor="gate-role">
+                      Participant Role / Area of Interest <span className="text-red">*</span>
+                    </label>
+                    <select
+                      id="gate-role"
+                      value={formData.role}
+                      onChange={e => updateField('role', e.target.value)}
+                    >
+                      <option value="Industrial Buyer / OEM">Industrial Buyer / OEM (Procure Components &amp; Submit CAD)</option>
+                      <option value="Manufacturing Facility / Vendor">Manufacturing Facility / Machine Shop (CNC, Milling, Fabrication)</option>
+                      <option value="Raw Material & Testing Partner">Raw Material Trader &amp; Inspection Agency</option>
+                      <option value="Bank / NBFC Financier">Banking &amp; Financial Institution (Execution Finance)</option>
+                      <option value="Corporate Evaluator">Executive / Evaluator (Exploring Platform Capabilities)</option>
+                    </select>
+                  </div>
+
+                  <div className="gate-otp-row">
+                    <div className="gate-otp-boxes" role="group" aria-label="One-time password">
+                      {Array.from({ length: 6 }, (_, index) => (
+                        <input
+                          key={index}
+                          ref={element => { otpInputs.current[index] = element; }}
+                          aria-label={`OTP digit ${index + 1}`}
+                          aria-invalid={Boolean(otpError)}
+                          aria-describedby={otpError ? 'gate-otp-error' : undefined}
+                          inputMode="numeric"
+                          autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                          value={code[index]?.trim() || ''}
+                          onFocus={e => e.target.select()}
+                          onChange={e => enterDigits(index, e.target.value)}
+                          onPaste={e => { e.preventDefault(); enterDigits(index, e.clipboardData.getData('text')); }}
+                          onKeyDown={e => {
+                            if (e.key === 'Backspace' && !code[index]?.trim() && index > 0) {
+                              e.preventDefault(); enterDigits(index - 1, ''); otpInputs.current[index - 1]?.focus();
+                            } else if (e.key === 'ArrowLeft' && index > 0) {
+                              e.preventDefault(); otpInputs.current[index - 1]?.focus();
+                            } else if (e.key === 'ArrowRight' && index < 5) {
+                              e.preventDefault(); otpInputs.current[index + 1]?.focus();
+                            }
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <button type="submit" className="btn btn-dark btn-sm" disabled={busy}>
+                      {busy ? 'Please wait...' : codeComplete ? 'Submit OTP' : 'Get OTP'}
+                    </button>
+                  </div>
+                  {devCode && (
+                    <div style={{
+                      margin: '10px 0 4px',
+                      padding: '8px 12px',
+                      background: '#fff8e6',
+                      border: '1px solid #ffd57e',
+                      borderRadius: '6px',
+                      fontSize: '0.84rem',
+                      color: '#8c5d00',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px'
+                    }}>
+                      <span>Dev OTP: <strong style={{ letterSpacing: '2px', color: '#102a43' }}>{devCode}</strong></span>
+                      <button
+                        type="button"
+                        style={{ fontSize: '0.8rem', color: '#8c5d00', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                        onClick={() => { const digits = devCode.split(''); digits.forEach((d, i) => enterDigits(i, d)); }}
+                      >
+                        Autofill
+                      </button>
+                    </div>
+                  )}
+                  <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '8px 0 0' }}>You will receive the OTP by email{formData.phone.trim() ? ' and SMS, if configured' : ''}.</p>
+                  {otpError && <p id="gate-otp-error" role="alert" className="field-error-msg">{otpError}</p>}
                 </fieldset>
               </form>
             </div>
@@ -327,7 +351,7 @@ export default function StartingGate({ onComplete }) {
       {/* Subtle Footer */}
       <footer className="gate-footer">
         <div className="container" style={{ fontSize: '0.8rem', color: '#849db0', textAlign: 'center' }}>
-          <span>&copy; {new Date().getFullYear()} ITOVA. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span>. All rights reserved.</span>
         </div>
       </footer>
     </div>

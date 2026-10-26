@@ -6,13 +6,20 @@ export default function Home() {
 
   const handleLaunchAuth = (tabKey) => {
     const normalizedTab = tabKey === 'supplier' ? 'vendor' : tabKey;
-    const route = normalizedTab === 'customer' || normalizedTab === 'vendor' ? normalizedTab : 'login';
+    const route = ['customer', 'vendor', 'finance', 'materials'].includes(normalizedTab) ? normalizedTab : 'login';
     setCurrentView(route);
   };
 
   const scrollTo = (id) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleKeyTrigger = (action) => (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      action();
+    }
   };
 
   return (
@@ -28,7 +35,7 @@ export default function Home() {
                 <span>One accountable</span> execution system.
               </h1>
               <p className="hero-lead-industrial">
-                ITOVA connects customers, verified manufacturers, material partners, quality systems, 
+                <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span> connects customers, verified manufacturers, material partners, quality systems, 
                 logistics and finance through a controlled, traceable industrial operating model.
               </p>
               <div className="hero-actions-industrial">
@@ -44,7 +51,7 @@ export default function Home() {
                   className="btn btn-outline" 
                   onClick={() => scrollTo('how')}
                 >
-                  Explore ITOVA
+                  Explore <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span>
                 </button>
               </div>
             </div>
@@ -79,7 +86,8 @@ export default function Home() {
               {/* Top-Left Corner: CUSTOMER */}
               <div 
                 className="hex-corner-node corner-customer" 
-                onClick={() => handleLaunchAuth('customer')} 
+                onClick={() => handleLaunchAuth('customer')}
+                onKeyDown={handleKeyTrigger(() => handleLaunchAuth('customer'))}
                 title="Customer Gateway - Submit drawings & procure"
                 role="button"
                 tabIndex={0}
@@ -91,7 +99,8 @@ export default function Home() {
               {/* Top-Right Corner: QUALITY */}
               <div 
                 className="hex-corner-node corner-quality" 
-                onClick={() => scrollTo('how')} 
+                onClick={() => scrollTo('how')}
+                onKeyDown={handleKeyTrigger(() => scrollTo('how'))}
                 title="Quality Systems - CMM, Mill test certificates & IGI Hub"
                 role="button"
                 tabIndex={0}
@@ -103,7 +112,8 @@ export default function Home() {
               {/* Bottom-Left Corner: MATERIAL */}
               <div 
                 className="hex-corner-node corner-material" 
-                onClick={() => handleLaunchAuth('vendor')} 
+                onClick={() => handleLaunchAuth('materials')}
+                onKeyDown={handleKeyTrigger(() => handleLaunchAuth('materials'))}
                 title="Material & Sourcing - Vetted machine shops & stockists"
                 role="button"
                 tabIndex={0}
@@ -115,7 +125,8 @@ export default function Home() {
               {/* Bottom-Right Corner: LOGISTICS */}
               <div 
                 className="hex-corner-node corner-logistics" 
-                onClick={() => scrollTo('how')} 
+                onClick={() => scrollTo('how')}
+                onKeyDown={handleKeyTrigger(() => scrollTo('how'))}
                 title="Tracked Freight - Consolidation & hub dispatch"
                 role="button"
                 tabIndex={0}
@@ -127,7 +138,8 @@ export default function Home() {
               {/* Top Vertex: FINANCE */}
               <div 
                 className="hex-corner-node corner-finance" 
-                onClick={() => scrollTo('network')} 
+                onClick={() => handleLaunchAuth('finance')}
+                onKeyDown={handleKeyTrigger(() => handleLaunchAuth('finance'))}
                 title="Finance Partners - Banks and NBFCs"
                 role="button"
                 tabIndex={0}
@@ -139,7 +151,8 @@ export default function Home() {
               {/* Bottom Vertex: VENDOR */}
               <div 
                 className="hex-corner-node corner-vendor" 
-                onClick={() => handleLaunchAuth('vendor')} 
+                onClick={() => handleLaunchAuth('vendor')}
+                onKeyDown={handleKeyTrigger(() => handleLaunchAuth('vendor'))}
                 title="Vendor Gateway - Register a manufacturing facility"
                 role="button"
                 tabIndex={0}
@@ -151,7 +164,10 @@ export default function Home() {
               {/* Hexagon Center Core: ITOVA */}
               <div 
                 className="hex-core-center" 
-                onClick={() => scrollTo('how')} 
+                onClick={() => scrollTo('how')}
+                onKeyDown={handleKeyTrigger(() => scrollTo('how'))}
+                role="button"
+                tabIndex={0}
                 title="ITOVA Accountable Operating System"
               >
                 <div className="hex-core-glow" />
@@ -189,7 +205,7 @@ export default function Home() {
       {/* ── 3. HOW ITOVA WORKS (6-STAGE PIPELINE) ───── */}
       <section id="how" className="section-industrial">
         <div className="container">
-          <div className="section-tag">How ITOVA works</div>
+          <div className="section-tag">How <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span> works</div>
           <h2>From requirement to reliable delivery.</h2>
           <p className="subtitle">
             A single operating layer replaces fragmented follow-up across sourcing, production, 
@@ -242,7 +258,7 @@ export default function Home() {
           <div className="section-tag">One network. Defined roles.</div>
           <h2>Built for every party that makes industrial execution work.</h2>
           <p className="dark-sub">
-            ITOVA protects proprietary intellectual property while giving each participant the right visibility, responsibility and control.
+            <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span> protects proprietary intellectual property while giving each participant the right visibility, responsibility and control.
           </p>
 
           <div className="network-roles-grid">
@@ -262,14 +278,14 @@ export default function Home() {
 
             <article className="network-role-card">
               <h3>Material Partners</h3>
-              <button type="button" onClick={() => handleLaunchAuth('vendor')}>
+              <button type="button" onClick={() => handleLaunchAuth('materials')}>
                 Supply with traceability &rarr;
               </button>
             </article>
 
             <article className="network-role-card">
               <h3>Banks &amp; NBFCs</h3>
-              <button type="button" onClick={() => scrollTo('how')}>
+              <button type="button" onClick={() => handleLaunchAuth('finance')}>
                 Enable execution finance &rarr;
               </button>
             </article>
@@ -288,7 +304,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="portal-gateway-grid portal-grid-two-up">
+          <div className="portal-gateway-grid">
             {/* 1. Customer */}
             <div className="portal-gateway-card">
               <span className="portal-gateway-badge">Buyers &amp; OEMs</span>
@@ -362,6 +378,80 @@ export default function Home() {
                 Launch Vendor Portal &rarr;
               </button>
             </div>
+
+            {/* 3. Financier & NBFC Hub */}
+            <div className="portal-gateway-card">
+              <span className="portal-gateway-badge">Financial Institutions</span>
+              <h3 className="portal-gateway-title">Financier &amp; NBFC Hub</h3>
+              <p className="portal-gateway-desc">
+                PO invoice discounting, upfront 80% working capital factoring, and tripartite escrow management.
+              </p>
+              <div className="portal-gateway-features">
+                <div className="gateway-feature-item">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  <span>PO Factoring &amp; Early Payout Desk</span>
+                </div>
+                <div className="gateway-feature-item">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  <span>Tripartite Escrow Balance Vault</span>
+                </div>
+                <div className="gateway-feature-item">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  <span>Audited Supplier Credit Limits</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ width: '100%', marginTop: 'auto' }}
+                onClick={() => handleLaunchAuth('finance')}
+              >
+                Launch Financier Hub &rarr;
+              </button>
+            </div>
+
+            {/* 4. Raw Materials & Testing Console */}
+            <div className="portal-gateway-card">
+              <span className="portal-gateway-badge">Material Stockists &amp; Labs</span>
+              <h3 className="portal-gateway-title">Materials &amp; NABL Console</h3>
+              <p className="portal-gateway-desc">
+                Certified alloy billet allocations, EN 10204 3.1 MTR traceability, and NABL spectro/tensile testing.
+              </p>
+              <div className="portal-gateway-features">
+                <div className="gateway-feature-item">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  <span>Project Billet &amp; Bar Allocations</span>
+                </div>
+                <div className="gateway-feature-item">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  <span>Melt Chemistry &amp; Heat Lot Registry</span>
+                </div>
+                <div className="gateway-feature-item">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  <span>NABL ISO 17025 Test Certification</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ width: '100%', marginTop: 'auto' }}
+                onClick={() => handleLaunchAuth('materials')}
+              >
+                Launch Materials Console &rarr;
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -370,10 +460,10 @@ export default function Home() {
       <section id="about" className="section-industrial">
         <div className="container">
           <div style={{ maxWidth: '820px' }}>
-            <div className="section-tag">Why ITOVA</div>
+            <div className="section-tag">Why <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span></div>
             <h2>Industrial trust should be engineered—not assumed.</h2>
             <p className="subtitle" style={{ fontSize: '1.08rem', lineHeight: 1.75 }}>
-              ITOVA brings engineering understanding, verified capabilities, controlled documents, 
+              <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span> brings engineering understanding, verified capabilities, controlled documents, 
               quality assurance, logistics coordination and financial visibility into one accountable operating system.
             </p>
           </div>
@@ -385,7 +475,7 @@ export default function Home() {
         <div className="container">
           <div className="cta-inner-industrial">
             <div>
-              <div className="section-tag" style={{ marginBottom: '6px' }}>Start with ITOVA</div>
+              <div className="section-tag" style={{ marginBottom: '6px' }}>Start with <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span></div>
               <h2>Turn your next requirement into reliable delivery.</h2>
             </div>
             <div className="hero-actions-industrial">
@@ -429,14 +519,20 @@ export default function Home() {
               <button type="button" onClick={() => handleLaunchAuth('vendor')}>
                 Vendor &amp; Manufacturing Platform
               </button>
+              <button type="button" onClick={() => handleLaunchAuth('finance')}>
+                Financier &amp; NBFC Hub
+              </button>
+              <button type="button" onClick={() => handleLaunchAuth('materials')}>
+                Raw Materials &amp; Testing Console
+              </button>
             </div>
 
             <div className="foot-links-col">
               <b>Navigation</b>
               <button type="button" onClick={() => scrollTo('home')}>Overview</button>
-              <button type="button" onClick={() => scrollTo('how')}>How ITOVA Works</button>
+              <button type="button" onClick={() => scrollTo('how')}>How <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span> Works</button>
               <button type="button" onClick={() => scrollTo('network')}>Industrial Network</button>
-              <button type="button" onClick={() => scrollTo('about')}>Why ITOVA</button>
+              <button type="button" onClick={() => scrollTo('about')}>Why <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span></button>
             </div>
 
             <div className="foot-links-col">
@@ -456,7 +552,7 @@ export default function Home() {
           </div>
 
           <div className="fine-print">
-            <span>&copy; {new Date().getFullYear()} ITOVA. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} <span className="brand-word">IT<span className="brand-accent-o">O</span>VA</span>. All rights reserved.</span>
             <span>Privacy &bull; Information Security &bull; Terms of Use</span>
           </div>
         </div>

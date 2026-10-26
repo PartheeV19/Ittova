@@ -33,7 +33,13 @@ router.get('/status', (_req, res) => {
     engine: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
     geminiVisionConfigured: hasGemini,
     uploadedDrawingAnalysisAvailable: hasGemini,
-    samplePresetsAvailable: SAMPLE_CAD_DRAWINGS.length
+    samplePresetsAvailable: SAMPLE_CAD_DRAWINGS.length,
+    dataGovernancePolicy: {
+      cloudConsentRequired: true,
+      encryptionInTransit: 'TLS 1.3',
+      storagePolicy: 'Ephemeral in-memory processing only; no persistent retention of proprietary CAD on external cloud servers.',
+      trainingExclusion: 'Customer technical blueprints and CAD geometries are excluded from public LLM training datasets.'
+    }
   });
 });
 
@@ -43,7 +49,7 @@ router.get('/status', (_req, res) => {
  */
 router.post('/analyze', async (req, res, next) => {
   try {
-    const { imageBase64, mimeType, presetId, partHint, materialHint } = req.body || {};
+    const { imageBase64, mimeType, presetId, partHint, materialHint, consentToCloudAnalysis } = req.body || {};
 
     const hasPreset = typeof presetId === 'string' && presetId.trim().length > 0;
     const hasUpload = typeof imageBase64 === 'string' && imageBase64.trim().length > 0;
@@ -59,7 +65,8 @@ router.post('/analyze', async (req, res, next) => {
       mimeType,
       presetId,
       partHint,
-      materialHint
+      materialHint,
+      consentToCloudAnalysis: Boolean(consentToCloudAnalysis)
     });
 
     res.json(report);

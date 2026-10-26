@@ -2,13 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 
 // Sleek engineering SVG icons
-const PinIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-    <circle cx="12" cy="10" r="3" />
-  </svg>
-);
-
 const ClockIcon = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <circle cx="12" cy="12" r="10" />
@@ -59,7 +52,15 @@ const TargetIcon = () => (
   </svg>
 );
 
-export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-drive', onClose }) {
+export default function CADModelAnalyzer({
+  initialPresetId = 'shaft-precision-drive',
+  initialImage = null,
+  initialMimeType = 'image/png',
+  initialSvg = null,
+  project = null,
+  onClose,
+  allowSampleDrawings = true
+}) {
   const { showToast } = useApp();
   const [presets, setPresets] = useState([]);
   const [selectedPresetId, setSelectedPresetId] = useState(initialPresetId);
@@ -67,21 +68,21 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
   const [analysisReport, setAnalysisReport] = useState(null);
   const [analysisMeta, setAnalysisMeta] = useState(null);
   const [analysisError, setAnalysisError] = useState('');
-  const [drawingSvg, setDrawingSvg] = useState('');
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const [uploadedMimeType, setUploadedMimeType] = useState('');
+  const [drawingSvg, setDrawingSvg] = useState(initialSvg || '');
+  const [uploadedImage, setUploadedImage] = useState(initialImage || null);
+  const [uploadedMimeType, setUploadedMimeType] = useState(initialMimeType || '');
   const [activeTab, setActiveTab] = useState('operations'); // 'operations' | 'machines' | 'tooling' | 'dfm' | 'flow'
   const [selectedOpNumber, setSelectedOpNumber] = useState('OP 10');
-  const [hoveredBalloon, setHoveredBalloon] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [analysisProgress, setAnalysisProgress] = useState('');
+  const [consentToCloudAnalysis, setConsentToCloudAnalysis] = useState(true);
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
 
   const fileInputRef = useRef(null);
   const drawingCanvasRef = useRef(null);
-  const opCardsRef = useRef({});
   const analysisRequestRef = useRef(0);
   const analysisAbortRef = useRef(null);
   const progressTimersRef = useRef([]);
@@ -91,10 +92,18 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
     progressTimersRef.current = [];
   };
 
-  // Load the sample list, then analyze the selected preset.
+  // Load the available samples and optionally analyze the initial selection.
   useEffect(() => {
     const controller = new AbortController();
-    fetchPresets(controller.signal);
+
+    if (initialImage) {
+      setUploadedImage(initialImage);
+      setUploadedMimeType(initialMimeType);
+      if (initialSvg) setDrawingSvg(initialSvg);
+      runAnalysis(null, initialImage, initialMimeType);
+    } else if (allowSampleDrawings) {
+      fetchPresets(controller.signal);
+    }
 
     return () => {
       controller.abort();
@@ -102,7 +111,7 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
       analysisAbortRef.current?.abort();
       clearProgressTimers();
     };
-  }, []);
+  }, [initialImage, initialPresetId]);
 
   const fetchPresets = async (signal) => {
     try {
@@ -137,17 +146,17 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
     setAnalysisReport(null);
     setAnalysisMeta(null);
     setAnalysisError('');
-    setAnalysisProgress('Decomposing CAD geometry & extracting title block...');
+    setAnalysisProgress('Reading the drawing and title block…');
 
     try {
       progressTimersRef.current = [
-        setTimeout(() => setAnalysisProgress('Detecting datums, critical tolerances, and GD&T...'), 400),
-        setTimeout(() => setAnalysisProgress('Generating operations routing & matching CNC machine tools...'), 800),
-        setTimeout(() => setAnalysisProgress('Subordinating features with drawing coordinates...'), 1200)
+        setTimeout(() => setAnalysisProgress('Identifying dimensions and tolerances…'), 400),
+        setTimeout(() => setAnalysisProgress('Preparing operations and machine recommendations…'), 800),
+        setTimeout(() => setAnalysisProgress('Linking drawing features to each operation…'), 1200)
       ];
 
       const payload = customImage
-        ? { imageBase64: customImage, mimeType: customMimeType }
+        ? { imageBase64: customImage, mimeType: customMimeType, consentToCloudAnalysis }
         : { presetId: presetId || selectedPresetId };
 
       const res = await fetch('/api/v1/cad/analyze', {
@@ -168,7 +177,7 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
         throw new Error('The analyzer did not return a usable manufacturing plan.');
       }
       setAnalysisReport(data.analysis);
-      setAnalysisMeta({ source: data.source, modelUsed: data.modelUsed, notice: data.notice });
+      setAnalysisMeta({ source: data.source, modelUsed: data.modelUsed, notice: data.notice, dataGovernance: data.dataGovernance });
       if (data.drawingSvg) {
         setDrawingSvg(data.drawingSvg);
         setUploadedImage(null);
@@ -243,30 +252,13 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
     reader.readAsDataURL(file);
   };
 
-  // Select an operation and highlight its subordinated balloon
+  // Select an operation in the process plan.
   const handleSelectOperation = (opNumber) => {
     setSelectedOpNumber(opNumber);
-    const op = analysisReport?.operations?.find(o => o.opNumber === opNumber);
-    if (op?.subordinatedDrawingRef?.balloonNumber) {
-      setHoveredBalloon(op.subordinatedDrawingRef.balloonNumber);
-    }
-  };
-
-  // Select balloon on drawing and scroll operation into view
-  const handleSelectBalloon = (balloonNumber) => {
-    const op = analysisReport?.operations?.find(o => o.subordinatedDrawingRef?.balloonNumber === balloonNumber);
-    if (op) {
-      setSelectedOpNumber(op.opNumber);
-      setActiveTab('operations');
-      if (opCardsRef.current[op.opNumber]) {
-        opCardsRef.current[op.opNumber].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }
   };
 
   // Pan controls
   const handleMouseDown = (e) => {
-    if (e.target.closest('.cad-balloon-pin')) return;
     setIsPanning(true);
     setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
   };
@@ -293,42 +285,48 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
       <header className="cad-analyzer-header">
         <div className="cad-header-left">
           <div className="cad-title-badge">
-            <span className="cad-engine-pill">
-              {analysisMeta?.source === 'sample-preset' ? 'Sample plan' : 'Manufacturing workspace'}
-            </span>
-            <h1>CAD drawing analyzer</h1>
+            <span className="cad-engine-pill">Drawing analysis</span>
+            <h1>CAD drawing analysis</h1>
           </div>
           <p className="cad-header-sub">
-            Turn engineering drawings into clear operation plans, tooling lists, and machine requirements.
+            {allowSampleDrawings
+              ? 'Generate an operation plan, machine recommendations, and tooling from a sample or uploaded drawing.'
+              : 'Upload an engineering drawing to generate an operation plan, machine recommendations, and tooling.'}
           </p>
         </div>
 
         <div className="cad-header-actions">
-          {/* Preset Selector */}
-          <div className="cad-preset-selector-group">
-            <label htmlFor="preset-select">Sample Drawing:</label>
-            <select
-              id="preset-select"
-              value={selectedPresetId}
-              onChange={(e) => handlePresetSelect(e.target.value)}
-              disabled={analyzing || presets.length === 0}
-              className="cad-select-input"
-            >
-              {presets.length === 0 && <option value="">{analysisError ? 'Samples unavailable' : 'Loading samples…'}</option>}
-              {presets.map(p => (
-                <option key={p.id} value={p.id}>{p.title} ({p.drawingNo})</option>
-              ))}
-              {uploadedImage && <option value="custom">Custom Uploaded Drawing</option>}
-            </select>
-          </div>
+          {allowSampleDrawings && (
+            <div className="cad-preset-selector-group">
+              <label htmlFor="preset-select">Sample drawing</label>
+              <select
+                id="preset-select"
+                value={selectedPresetId}
+                onChange={(e) => handlePresetSelect(e.target.value)}
+                disabled={analyzing || presets.length === 0}
+                className="cad-select-input"
+              >
+                {presets.map(p => (
+                  <option key={p.id} value={p.id}>{p.title} ({p.drawingNo})</option>
+                ))}
+                {uploadedImage && <option value="custom">Uploaded drawing</option>}
+              </select>
+            </div>
+          )}
 
           {/* Upload Button */}
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className="btn btn-outline btn-sm cad-upload-btn"
             onClick={() => fileInputRef.current?.click()}
             disabled={analyzing}
+            title="Upload PDF, PNG, JPG, or WEBP drawing"
           >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
             <span>Upload drawing</span>
           </button>
           <input
@@ -339,15 +337,27 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
             onChange={handleFileUpload}
           />
 
-          {/* Re-analyze Button */}
-          <button
-            type="button"
-            className="btn btn-primary btn-sm btn-reanalyze"
-            onClick={() => runAnalysis(selectedPresetId === 'custom' ? null : selectedPresetId, uploadedImage, uploadedMimeType)}
-            disabled={analyzing}
-          >
-            {analyzing ? 'Analyzing…' : analysisReport ? 'Run analysis again' : 'Run analysis'}
-          </button>
+          {(allowSampleDrawings || uploadedImage) && (
+            <button
+              type="button"
+              className="btn btn-dark btn-sm btn-reanalyze"
+              onClick={() => runAnalysis(allowSampleDrawings && selectedPresetId !== 'custom' ? selectedPresetId : null, uploadedImage, uploadedMimeType)}
+              disabled={analyzing}
+            >
+              {analyzing ? (
+                <span>Analyzing…</span>
+              ) : analysisReport ? (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                  </svg>
+                  <span>Run analysis again</span>
+                </>
+              ) : (
+                <span>Run analysis</span>
+              )}
+            </button>
+          )}
 
           {onClose && (
             <button type="button" className="cad-close-btn" onClick={onClose} title="Close Analyzer">
@@ -357,11 +367,92 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
         </div>
       </header>
 
+      {/* AI Data Governance & Affirmative Cloud Consent Strip */}
+      <div style={{ margin: '12px 0', padding: '12px 16px', background: 'var(--bg-subtle, rgba(255, 255, 255, 0.03))', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.82rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <input
+              id="cad-cloud-consent"
+              type="checkbox"
+              checked={consentToCloudAnalysis}
+              onChange={e => {
+                const nextVal = e.target.checked;
+                setConsentToCloudAnalysis(nextVal);
+                if (uploadedImage) {
+                  runAnalysis(null, uploadedImage, uploadedMimeType);
+                }
+              }}
+              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+            />
+            <label htmlFor="cad-cloud-consent" style={{ margin: 0, cursor: 'pointer', fontWeight: 600, color: 'var(--text-heading)' }}>
+              Authorize Google Gemini Vision Cloud AI for DFM &amp; Tooling Decomposition
+            </label>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {consentToCloudAnalysis ? (
+              <span className="badge badge-approved" style={{ fontSize: '0.72rem' }}>
+                &#9889; Gemini Vision Authorized
+              </span>
+            ) : (
+              <span className="badge badge-process" style={{ fontSize: '0.72rem' }}>
+                &#128274; Local Deterministic CAM (Zero Cloud Transmission)
+              </span>
+            )}
+            <button
+              type="button"
+              className="btn-link"
+              style={{ fontSize: '0.75rem', textDecoration: 'underline', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              onClick={() => setShowPolicyModal(true)}
+            >
+              Data Governance Policy &rarr;
+            </button>
+          </div>
+        </div>
+        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '6px', marginLeft: '26px' }}>
+          {consentToCloudAnalysis
+            ? 'Drawings are encrypted in transit via TLS 1.3 to Google Gemini Vision. Blueprints are ephemeral and strictly excluded from public AI training.'
+            : 'Opted out of external AI transmission. Drawings will be evaluated strictly on-premise using deterministic rule algorithms.'}
+        </div>
+      </div>
+
+      {/* AI Data Governance Modal */}
+      {showPolicyModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div className="card" style={{ maxWidth: '640px', width: '100%', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-card, #1e293b)', border: '1px solid var(--border)', padding: '24px', borderRadius: '12px' }}>
+            <div className="flex-between" style={{ marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-heading)' }}>ITTOVA Enterprise AI &amp; CAD Data Governance</h3>
+              <button type="button" className="cad-close-btn" onClick={() => setShowPolicyModal(false)}>✕</button>
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-body)', lineHeight: '1.6' }}>
+              <p>
+                <strong>1. Zero Public Model Training:</strong> Under our enterprise agreements, technical drawings, CAD blueprints, and 3D geometries submitted for CAM decomposition are <em>never</em> utilized to train or fine-tune public foundation models.
+              </p>
+              <p>
+                <strong>2. Ephemeral In-Memory Processing:</strong> When cloud AI analysis is authorized, drawings are streamed ephemerally into memory for feature extraction and discarded immediately upon completion.
+              </p>
+              <p>
+                <strong>3. End-to-End Transport Encryption:</strong> All CAD transmissions utilize TLS 1.3 encryption with SHA-256 certificate validation.
+              </p>
+              <p>
+                <strong>4. Guaranteed On-Premise Fallback:</strong> For ITAR, defense, or highly sensitive aerospace components, disabling the cloud authorization checkbox immediately locks all processing to ITTOVA&apos;s local deterministic rule engine without external internet egress.
+              </p>
+              <p>
+                <strong>5. Enforceable Mutual NDA:</strong> All submissions remain strictly bound by the executed ITTOVA Master Service Agreement and Mutual Non-Disclosure Agreement.
+              </p>
+            </div>
+            <div style={{ marginTop: '20px', textAlign: 'right' }}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowPolicyModal(false)}>
+                Acknowledge &amp; Return
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {analysisMeta?.notice && (
         <div className={`cad-analyzer-notice ${analysisMeta.source === 'sample-preset' ? 'sample' : ''}`} role="status">
-          <strong>{analysisMeta.source === 'sample-preset' ? 'Sample plan' : 'AI estimate'}</strong>
+          <strong>{analysisMeta.source === 'sample-preset' ? 'Sample analysis' : analysisMeta.source === 'gemini-vision' ? 'Gemini Vision AI' : 'Local Deterministic CAM'}</strong>
           <span>{analysisMeta.notice}</span>
-          {analysisMeta.modelUsed && <span className="cad-model-label">Engine: {analysisMeta.modelUsed}</span>}
         </div>
       )}
       {analysisError && (
@@ -371,15 +462,14 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
         </div>
       )}
 
-      {/* Main Two-Column Workstation */}
+      {/* Analysis workspace */}
       <div className="cad-workstation-grid">
 
-        {/* Left Column: Visual Drawing Canvas & Subordination Overlays */}
         <div className="cad-drawing-viewport-card">
           <div className="cad-viewport-toolbar">
             <div className="cad-drawing-meta">
-              <span className="cad-drawing-id">{analysisReport?.drawingNumber || (uploadedImage ? 'UPLOADED DRAWING' : 'SELECT A SAMPLE')}</span>
-              <span className="cad-part-name">{analysisReport?.partName || (uploadedImage ? 'Engineering drawing' : 'Awaiting drawing')}</span>
+              <span className="cad-drawing-id">{analysisReport?.drawingNumber || (uploadedImage ? 'Uploaded drawing' : 'Preview not loaded')}</span>
+              {analysisReport?.partName && <span className="cad-part-name">{analysisReport.partName}</span>}
             </div>
 
             <div className="cad-viewport-controls">
@@ -414,7 +504,6 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                 transformOrigin: 'center center'
               }}
             >
-              {/* SVG CAD Drawing */}
               {drawingSvg && (
                 <div
                   className="cad-svg-wrapper"
@@ -422,7 +511,6 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                 />
               )}
 
-              {/* Uploaded drawing preview */}
               {uploadedImage && !drawingSvg && (
                 <div className="cad-uploaded-image-wrapper">
                   {uploadedMimeType === 'application/pdf' ? (
@@ -445,59 +533,16 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                       <path d="m39 39 4 4" />
                     </svg>
                   </span>
-                  <strong>{analyzing ? 'Preparing drawing preview' : 'Your drawing preview appears here'}</strong>
-                  <span>Choose a sample above or upload a PDF, PNG, JPG, or WEBP engineering drawing.</span>
+                  <strong>{analyzing ? 'Preparing drawing preview' : 'No drawing loaded'}</strong>
+                  <span>{allowSampleDrawings ? 'Run analysis for the selected sample, or upload a drawing.' : 'Upload a PDF, PNG, JPG, or WEBP drawing to get started.'}</span>
                 </div>
               )}
-
-              {/* Subordinated Balloon Pins Overlaid on Drawing */}
-              {analysisReport?.operations?.map((op) => {
-                const ref = op.subordinatedDrawingRef;
-                if (!ref || !ref.calloutLocation) return null;
-                const isSelected = selectedOpNumber === op.opNumber;
-                const isHovered = hoveredBalloon === ref.balloonNumber;
-
-                return (
-                  <div
-                    key={op.opNumber}
-                    className={`cad-balloon-pin ${isSelected ? 'selected' : ''} ${isHovered ? 'hovered' : ''}`}
-                    style={{
-                      left: `${ref.calloutLocation.xPercent}%`,
-                      top: `${ref.calloutLocation.yPercent}%`
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelectBalloon(ref.balloonNumber);
-                    }}
-                    onMouseEnter={() => setHoveredBalloon(ref.balloonNumber)}
-                    onMouseLeave={() => setHoveredBalloon(null)}
-                    title={`Op: ${op.name} (${op.machine})`}
-                  >
-                    <span className="cad-balloon-number">{ref.balloonNumber}</span>
-
-                    {/* Floating Callout Tooltip */}
-                    {(isSelected || isHovered) && (
-                      <div className="cad-balloon-tooltip">
-                        <div className="tooltip-op-tag">{op.opNumber}: {op.name}</div>
-                        <div className="tooltip-feature"><strong>Feature:</strong> {ref.feature}</div>
-                        <div className="tooltip-machine"><strong>Machine:</strong> {op.machineCategory} ({op.machine.split('(')[0]})</div>
-                        <div className="tooltip-tool"><strong>Tool:</strong> {op.tooling.split(';')[0]}</div>
-                        {ref.tolerance && <div className="tooltip-tol"><strong>Tolerance:</strong> {ref.tolerance}</div>}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
             </div>
           </div>
 
-          {/* Canvas Bottom Legend */}
           <div className="cad-canvas-footer-legend">
             {analysisReport ? (
               <>
-                <span className="legend-item">
-                  <span className="legend-dot" style={{ background: '#e12d39' }} /> Drawing callouts · select one to inspect its operation
-                </span>
                 <span className="legend-item">
                   <span className="legend-badge">Material</span> {analysisReport.material || 'Not identified'}
                 </span>
@@ -511,12 +556,12 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
           </div>
         </div>
 
-        {/* Right Column: Comprehensive Operations, Tooling & Machines Panel */}
+        {/* Operations, tooling, and machine details */}
         <div className={`cad-details-panel-card ${analysisReport ? '' : 'empty'}`}>
           {!analysisReport && (
             <div className="cad-analyzer-empty" role={analysisError ? 'alert' : 'status'}>
-              <strong>{analyzing ? 'Building your manufacturing plan' : 'Your process plan appears here'}</strong>
-              <span>{analysisError ? 'The analyzer could not reach its sample service. Retry, or upload a drawing when the service is available.' : 'Choose a sample or upload a drawing to generate operations, tooling, and machine requirements.'}</span>
+              <strong>{analyzing ? 'Preparing the process plan' : 'No analysis yet'}</strong>
+              <span>{analysisError ? 'The analysis could not be completed. Try again or choose another drawing.' : allowSampleDrawings ? 'Run analysis for the selected sample, or upload a drawing to view proposed operations, tooling, and machine requirements.' : 'Upload a drawing to view proposed operations, tooling, and machine requirements.'}</span>
               {analysisError && (
                 <button
                   type="button"
@@ -537,28 +582,28 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
               className={`cad-tab-btn ${activeTab === 'operations' ? 'active' : ''}`}
               onClick={() => setActiveTab('operations')}
             >
-              Operations &amp; Process Routing ({analysisReport?.operations?.length || 0})
+              Operations ({analysisReport?.operations?.length || 0})
             </button>
             <button
               type="button"
               className={`cad-tab-btn ${activeTab === 'machines' ? 'active' : ''}`}
               onClick={() => setActiveTab('machines')}
             >
-              Machines Required ({analysisReport?.machinesSummary?.length || 0})
+              Machines ({analysisReport?.machinesSummary?.length || 0})
             </button>
             <button
               type="button"
               className={`cad-tab-btn ${activeTab === 'tooling' ? 'active' : ''}`}
               onClick={() => setActiveTab('tooling')}
             >
-              Bill of Tools ({analysisReport?.toolingSummary?.length || 0})
+              Tooling ({analysisReport?.toolingSummary?.length || 0})
             </button>
             <button
               type="button"
               className={`cad-tab-btn ${activeTab === 'dfm' ? 'active' : ''}`}
               onClick={() => setActiveTab('dfm')}
             >
-              DFM &amp; Tolerances
+              Design review
             </button>
             <button
               type="button"
@@ -574,12 +619,12 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
             <div className="cad-tab-content-scroll">
               <div className="cad-op-summary-bar">
                 <div className="op-summary-stat">
-                  <span className="stat-label">Total Operations</span>
+                  <span className="stat-label">Operations</span>
                   <strong className="stat-value">{analysisReport?.operations?.length || 0} Steps</strong>
                 </div>
                 <div className="op-summary-divider" />
                 <div className="op-summary-stat">
-                  <span className="stat-label">Estimated Routing Time</span>
+                  <span className="stat-label">Estimated total time</span>
                   <strong className="stat-value">
                     {(analysisReport?.operations?.reduce((acc, o) => acc + (o.estimatedCycleTimeSec || 0), 0) / 60).toFixed(1)} min
                   </strong>
@@ -590,11 +635,6 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
               <div className="cad-process-flow-strip">
                 {analysisReport?.operations?.map((op, idx) => {
                   const isActive = selectedOpNumber === op.opNumber;
-                  const catCode = {
-                    'Turning': 'TURN', 'Milling': 'MILL', 'Drilling': 'DRIL', 'Grinding': 'GRND',
-                    'Inspection': 'INSP', 'Finishing': 'FIN', 'EDM': 'EDM', 'Welding': 'WELD'
-                  }[op.machineCategory] || 'PROC';
-
                   return (
                     <React.Fragment key={op.opNumber}>
                       <button
@@ -603,7 +643,7 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                         onClick={() => handleSelectOperation(op.opNumber)}
                         title={`${op.opNumber}: ${op.name}`}
                       >
-                        <span className="flow-node-cat">{catCode}</span>
+                        <span className="flow-node-cat">{op.machineCategory}</span>
                         <span className="flow-node-label">{op.opNumber}</span>
                       </button>
                       {idx < (analysisReport.operations.length - 1) && (
@@ -617,12 +657,9 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
               <div className="cad-operations-timeline">
                 {analysisReport?.operations?.map((op) => {
                   const isSelected = selectedOpNumber === op.opNumber;
-                  const balloonNo = op.subordinatedDrawingRef?.balloonNumber;
-
                   return (
                     <article
                       key={op.opNumber}
-                      ref={el => opCardsRef.current[op.opNumber] = el}
                       className={`cad-operation-card ${isSelected ? 'active' : ''}`}
                       onClick={() => handleSelectOperation(op.opNumber)}
                     >
@@ -642,20 +679,6 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                             </span>
                           )}
 
-                          {balloonNo && (
-                            <button
-                              type="button"
-                              className="op-balloon-link-badge"
-                              title="Locate feature callout on drawing"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelectBalloon(balloonNo);
-                              }}
-                            >
-                              <PinIcon />
-                              <span>Callout #{balloonNo}</span>
-                            </button>
-                          )}
                         </div>
                       </div>
 
@@ -679,7 +702,7 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                         <div className="op-spec-item">
                           <div className="spec-label-row">
                             <MachineIcon />
-                            <span className="spec-label">Machine Required</span>
+                            <span className="spec-label">Machine</span>
                           </div>
                           <span className="spec-value">{op.machine}</span>
                         </div>
@@ -687,14 +710,14 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                         <div className="op-spec-item">
                           <div className="spec-label-row">
                             <ToolIcon />
-                            <span className="spec-label">Cutting Tooling</span>
+                            <span className="spec-label">Tooling</span>
                           </div>
                           <span className="spec-value">{op.tooling}</span>
                         </div>
 
                         <div className="op-spec-item">
                           <div className="spec-label-row">
-                            <span className="spec-label">Fixturing &amp; Workholding</span>
+                            <span className="spec-label">Workholding</span>
                           </div>
                           <span className="spec-value">{op.fixturing || 'Standard Vise / 3-Jaw Chuck'}</span>
                         </div>
@@ -702,7 +725,7 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                         <div className="op-spec-item">
                           <div className="spec-label-row">
                             <GaugeIcon />
-                            <span className="spec-label">Quality Metrology</span>
+                            <span className="spec-label">Inspection</span>
                           </div>
                           <span className="spec-value">{op.inspectionTool}</span>
                         </div>
@@ -747,8 +770,8 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
           {activeTab === 'machines' && (
             <div className="cad-tab-content-scroll">
               <div className="cad-tab-intro">
-                <h3>Required Machinery Fleet for this Component</h3>
-                <p>The CAD analyzer has identified the following manufacturing machinery necessary to meet part tolerances and geometry specifications.</p>
+                <h3>Recommended machines</h3>
+                <p>Machines matched to the operations in this process plan.</p>
               </div>
 
               <div className="cad-machines-grid">
@@ -760,17 +783,16 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                       </div>
                       <div className="machine-title-group">
                         <h4>{m.machineName}</h4>
-                        <span className="vendor-suitability-pill">{m.suitabilityScore || 'Qualified Vendor Spec'}</span>
                       </div>
                     </div>
 
                     <div className="machine-specs-section">
-                      <span className="specs-subheading">Technical Specifications</span>
+                      <span className="specs-subheading">Requirements</span>
                       <p className="specs-text">{m.requiredSpecs}</p>
                     </div>
 
                     <div className="machine-ops-tags">
-                      <span className="specs-subheading">Allocated Operations</span>
+                      <span className="specs-subheading">Operations</span>
                       <div className="ops-chips-wrap">
                         {m.operationsPerformed?.map((opName, oIdx) => (
                           <span key={oIdx} className="op-chip">{opName}</span>
@@ -787,8 +809,8 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
           {activeTab === 'tooling' && (
             <div className="cad-tab-content-scroll">
               <div className="cad-tab-intro">
-                <h3>Bill of Tools (Shop Floor Tooling Matrix)</h3>
-                <p>Comprehensive list of carbide inserts, solid end mills, taps, and grinding wheels needed to execute this production run.</p>
+                <h3>Recommended tooling</h3>
+                <p>Tools matched to the proposed operations.</p>
               </div>
 
               <div className="cad-tooling-table-wrap">
@@ -796,9 +818,9 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                   <thead>
                     <tr>
                       <th>Category</th>
-                      <th>Tool Specification / Code</th>
-                      <th>Coating / Grade</th>
-                      <th>Machining Purpose</th>
+                      <th>Tool</th>
+                      <th>Grade / coating</th>
+                      <th>Purpose</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -820,15 +842,15 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
           {activeTab === 'dfm' && (
             <div className="cad-tab-content-scroll">
               <div className="cad-tab-intro">
-                <h3>Design for Manufacturability (DFM) &amp; Tolerances</h3>
-                <p>AI engineering observations on dimension stackups, tool access constraints, and setup consolidation opportunities.</p>
+                <h3>Design review</h3>
+                <p>Key tolerances and manufacturing recommendations for this drawing.</p>
               </div>
 
               {/* Critical Tolerances Card */}
               <div className="cad-dfm-section">
                 <div className="dfm-section-header">
                   <TargetIcon />
-                  <h4>Critical Drawing Tolerances Identified</h4>
+                  <h4>Critical tolerances</h4>
                 </div>
                 <div className="critical-tols-list">
                   {analysisReport?.criticalTolerances?.map((tol, idx) => (
@@ -844,7 +866,7 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
               <div className="cad-dfm-section">
                 <div className="dfm-section-header">
                   <InsightIcon />
-                  <h4>Process Optimization &amp; Tooling Notes</h4>
+                  <h4>Manufacturing notes</h4>
                 </div>
                 <div className="dfm-recommendations-list">
                   {analysisReport?.dfmRecommendations?.map((rec, idx) => (
@@ -862,8 +884,8 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
           {activeTab === 'flow' && (
             <div className="cad-tab-content-scroll">
               <div className="cad-tab-intro">
-                <h3>Manufacturing Process Flow Diagram</h3>
-                <p>Visual representation of the complete manufacturing workflow showing process categories, machine allocations, and quality gates.</p>
+                <h3>Process flow</h3>
+                <p>Proposed operations in sequence, grouped by process type.</p>
               </div>
 
               {/* Process Flow Swimlane View */}
@@ -876,15 +898,10 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
                     categories[cat].push(op);
                   });
                   return Object.entries(categories).map(([cat, ops]) => {
-                    const catCode = {
-                      'Turning': 'TURN', 'Milling': 'MILL', 'Drilling': 'DRIL', 'Grinding': 'GRND',
-                      'Inspection': 'INSP', 'Finishing': 'FIN', 'EDM': 'EDM', 'Welding': 'WELD'
-                    }[cat] || 'PROC';
-
                     return (
                       <div key={cat} className="flow-swimlane">
                         <div className="swimlane-header">
-                          <span className="swimlane-cat-code">{catCode}</span>
+                          <span className="swimlane-cat-code">{cat}</span>
                           <span className="swimlane-title">{cat}</span>
                           <span className="swimlane-count">{ops.length} ops</span>
                         </div>
@@ -919,7 +936,7 @@ export default function CADModelAnalyzer({ initialPresetId = 'shaft-precision-dr
               {/* Total Summary */}
               <div className="cad-flow-summary-bar">
                 <div className="flow-summary-item">
-                  <span className="flow-summary-label">Total Operations</span>
+                  <span className="flow-summary-label">Operations</span>
                   <span className="flow-summary-value">{analysisReport?.operations?.length || 0}</span>
                 </div>
                 <div className="flow-summary-item">

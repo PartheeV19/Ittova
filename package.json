@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "server:dev": "node --watch server/src/index.js",
     "server:start": "node server/src/index.js",
+    "test": "node --test server/src/**/*.test.js",
     "db:migrate": "node server/src/db/migrate.js",
+    "db:bootstrap": "node server/src/db/bootstrap.js",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down"
   },

@@ -1,35 +1,38 @@
 import React, { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useApp } from './context/AppContext';
+import StartingGate from './pages/StartingGate/StartingGate';
 import Navbar from './components/Navbar';
 import Toast from './components/Toast';
 import CADModal from './components/CADModal';
 import LoginScreen from './pages/Login/LoginScreen';
+import Home from './pages/Home/Home';
+import CustomerPortal from './pages/Customer/CustomerPortal';
 import SupplierPortal from './pages/Supplier/SupplierPortal';
+import AdminPortal from './pages/Admin/AdminPortal';
+import StaffPortal from './pages/Staff/StaffPortal';
+import FinancePartnerPortal from './pages/FinancePartner/FinancePartnerPortal';
+import MaterialPartnerPortal from './pages/MaterialPartner/MaterialPartnerPortal';
 import AccountPage from './pages/Account/AccountPage';
 import CADAnalyzerPage from './pages/CADAnalyzer/CADAnalyzerPage';
 
 export default function App() {
-  const { currentUser, authChecked, dbLoading } = useApp();
+  const { currentUser, authChecked, dbLoading, visitorProfile, saveVisitorProfile } = useApp();
   const location = useLocation();
   const isCadAnalyzerPage = location.pathname === '/cad-analyzer';
 
   // Scroll to top on view change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [location.pathname]);
+  }, [location.pathname, visitorProfile]);
 
   if (!authChecked) return <main className="container" role="status">Loading your session...</main>;
 
-  // If not logged in, directly show the Vendor Login/Signup screen
-  if (!currentUser) {
+  // If visitor has not provided their basic details yet, show the starting gate
+  if (!visitorProfile && !currentUser) {
     return (
       <div className="app-root">
-        {!isCadAnalyzerPage && <Navbar />}
-        <Routes>
-          <Route path="/cad-analyzer" element={<CADAnalyzerPage />} />
-          <Route path="*" element={<LoginScreen />} />
-        </Routes>
+        <StartingGate onComplete={saveVisitorProfile} />
         <Toast />
       </div>
     );
@@ -38,23 +41,43 @@ export default function App() {
   const renderWorkspace = () => (
     <main className="container" id="app-container" style={{ padding: '2.5rem clamp(20px, 4vw, 64px) 5rem' }}>
       {dbLoading && <p role="status">Refreshing workspace...</p>}
-      <SupplierPortal />
+      {currentUser?.role === 'admin' && <AdminPortal />}
+      {currentUser?.role === 'customer' && <CustomerPortal />}
+      {currentUser?.role === 'supplier' && <SupplierPortal />}
+      {currentUser?.role === 'staff' && <StaffPortal />}
+      {currentUser?.role === 'finance_partner' && <FinancePartnerPortal />}
+      {currentUser?.role === 'material_partner' && <MaterialPartnerPortal />}
     </main>
   );
 
+  const workspacePath = {
+    customer: '/customer',
+    supplier: '/vendor',
+    staff: '/staff',
+    admin: '/admin',
+    finance_partner: '/finance',
+    material_partner: '/materials'
+  }[currentUser?.role];
+  const portal = () => !currentUser ? <LoginScreen /> : location.pathname !== workspacePath ? <Navigate to={workspacePath || '/home'} replace /> : renderWorkspace();
+
   return (
     <div className="app-root">
-      {!isCadAnalyzerPage && <Navbar />}
+      <Navbar />
 
       <Routes>
-        <Route path="/" element={<Navigate to="/vendor" replace />} />
-        <Route path="/home" element={<Navigate to="/vendor" replace />} />
-        <Route path="/login" element={<Navigate to="/vendor" replace />} />
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/home" element={<Home />} />
+        <Route path="/login" element={currentUser ? <Navigate to="/home" replace /> : <LoginScreen />} />
         <Route path="/account/:profileId" element={<AccountPage />} />
         <Route path="/cad-analyzer" element={<CADAnalyzerPage />} />
-        <Route path="/vendor" element={renderWorkspace()} />
+        <Route path="/customer" element={portal()} />
+        <Route path="/vendor" element={portal()} />
         <Route path="/supplier" element={<Navigate to="/vendor" replace />} />
-        <Route path="*" element={<Navigate to="/vendor" replace />} />
+        <Route path="/finance" element={portal()} />
+        <Route path="/materials" element={portal()} />
+        <Route path="/admin" element={currentUser ? portal() : <Navigate to="/login" replace />} />
+        <Route path="/staff" element={currentUser ? portal() : <Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
 
       <Toast />

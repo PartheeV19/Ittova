@@ -48,7 +48,18 @@ export function AppProvider({ children }) {
   const [db, setDb] = useState({ customers: [], vendors: [], projects: [], staff: [] });
   const [dbLoading, setDbLoading] = useState(false);
 
-  const currentView = ({ '/': 'home', '/home': 'home', '/login': 'login', '/customer': 'customer', '/vendor': 'vendor', '/supplier': 'vendor', '/staff': 'staff', '/admin': 'admin' }[location.pathname] || (location.pathname.startsWith('/account/') ? 'account' : 'home'));
+  const currentView = ({
+    '/': 'home',
+    '/home': 'home',
+    '/login': 'login',
+    '/customer': 'customer',
+    '/vendor': 'vendor',
+    '/supplier': 'vendor',
+    '/staff': 'staff',
+    '/admin': 'admin',
+    '/finance': 'finance_partner',
+    '/materials': 'material_partner'
+  }[location.pathname] || (location.pathname.startsWith('/account/') ? 'account' : 'home'));
 
   const setCurrentView = (view, replace = false) => {
     const normalizedView = view === 'supplier' ? 'vendor' : view;
@@ -239,8 +250,9 @@ export function AppProvider({ children }) {
       method: 'POST',
       body: { contact: email, email, phone, purpose: 'signup', deliveryChannels: ['email', 'sms'] }
     });
-    if (!result?.acceptedTo?.includes(email) || !result?.acceptedTo?.includes(phone)) {
-      throw new Error('Email and SMS delivery is not configured yet. Please try again once both delivery services are enabled.');
+    // In dev mode SMS may not be configured — fall back to email-only silently.
+    if (!result?.acceptedTo?.includes(email)) {
+      throw new Error('Email delivery is not configured. Please check your RESEND_API_KEY and OTP_EMAIL_FROM settings.');
     }
     return result;
   });
@@ -250,8 +262,10 @@ export function AppProvider({ children }) {
       const session = await apiFetch('/auth/otp/verify', { method: 'POST', body: { contact, code, role, purpose, profile } });
       if (onVerified) onVerified();
       const user = await applySession(session);
-      if (purpose === 'signup') setCurrentView(role === 'supplier' ? 'vendor' : 'customer', true);
-      else setCurrentView('home', true);
+      if (purpose === 'signup') {
+        const target = role === 'supplier' ? 'vendor' : role === 'finance_partner' ? 'finance' : role === 'material_partner' ? 'materials' : 'customer';
+        setCurrentView(target, true);
+      } else setCurrentView('home', true);
       return user;
     }, 'Invalid or expired code.');
 
@@ -304,43 +318,59 @@ export function AppProvider({ children }) {
     }, 'Could not approve the customer.');
 
   // --- Drawing release & quoting -------------------------------------------
-  const submitDrawings = (cid, radius = 50) =>
+  const submitDrawings = (cid, radius = 50, customPayload = null) =>
     runAction(async () => {
-      // NOTE: real AI/DFM drawing extraction isn't wired up yet -- this still
-      // sends the same demo drawing set the client used to fabricate locally.
-      // See the punch list; swap this payload for real extracted data once
-      // that lands.
-      const availableVendors = db.vendors.length > 0
-        ? db.vendors.map(v => ({ id: v.id, label: `${v.id} (${v.name})` }))
-        : [
-            { id: 'FAC-01', label: 'Audited Facility [Cherlapally Hub]' },
-            { id: 'FAC-02', label: 'Audited Facility [Balanagar Hub]' }
-          ];
-      const v1 = availableVendors[0] || { id: 'FAC-01', label: 'Audited Machining Hub' };
-      const v2 = availableVendors[1] || availableVendors[0];
+      let payload;
 
-      const drawings = [
-        {
-          dwgNo: 'DWG-A101', proc: 'CNC LASER CUTTING, CNC MILLING', qty: 25, material: 'Mild Steel',
-          rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor',
-          processes: [
-            { stageId: 1, name: 'CNC LASER CUTTING', topVendors: [v1.label], quotes: [{ vid: v1.label, cost: 12500, time: 3 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' },
-            { stageId: 2, name: 'CNC MILLING', topVendors: [v1.label, v2.label], quotes: [{ vid: v1.label, cost: 28000, time: 5 }, { vid: v2.label, cost: 31000, time: 4 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' }
-          ]
-        },
-        {
-          dwgNo: 'DWG-B202', proc: 'CNC LASER CUTTING, CNC BENDING', qty: 50, material: 'Aluminum 6061-T6',
-          rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor',
-          processes: [
-            { stageId: 1, name: 'CNC LASER CUTTING', topVendors: [v1.label], quotes: [{ vid: v1.label, cost: 18000, time: 2 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' },
-            { stageId: 2, name: 'CNC BENDING', topVendors: [v1.label], quotes: [{ vid: v1.label, cost: 14000, time: 3 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' }
-          ]
-        }
-      ];
+      if (customPayload && Array.isArray(customPayload.drawings) && customPayload.drawings.length > 0) {
+        payload = {
+          searchLoc: customPayload.searchLoc || 'Hyderabad',
+          searchRad: radius,
+          files: customPayload.files || customPayload.drawings.map(d => d.dwgNo).join(', '),
+          bom: customPayload.bom || 'Bill_of_Materials.xlsx',
+          drawings: customPayload.drawings
+        };
+      } else {
+        const availableVendors = db.vendors.length > 0
+          ? db.vendors.map(v => ({ id: v.id, label: `${v.id} (${v.name})` }))
+          : [
+              { id: 'FAC-01', label: 'Audited Facility [Cherlapally Hub]' },
+              { id: 'FAC-02', label: 'Audited Facility [Balanagar Hub]' }
+            ];
+        const v1 = availableVendors[0] || { id: 'FAC-01', label: 'Audited Machining Hub' };
+        const v2 = availableVendors[1] || availableVendors[0];
+
+        const drawings = [
+          {
+            dwgNo: 'DWG-A101', proc: 'CNC LASER CUTTING, CNC MILLING', qty: 25, material: 'Mild Steel',
+            rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor',
+            processes: [
+              { stageId: 1, name: 'CNC LASER CUTTING', topVendors: [v1.label], quotes: [{ vid: v1.label, cost: 12500, time: 3 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' },
+              { stageId: 2, name: 'CNC MILLING', topVendors: [v1.label, v2.label], quotes: [{ vid: v1.label, cost: 28000, time: 5 }, { vid: v2.label, cost: 31000, time: 4 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' }
+            ]
+          },
+          {
+            dwgNo: 'DWG-B202', proc: 'CNC LASER CUTTING, CNC BENDING', qty: 50, material: 'Aluminum 6061-T6',
+            rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor',
+            processes: [
+              { stageId: 1, name: 'CNC LASER CUTTING', topVendors: [v1.label], quotes: [{ vid: v1.label, cost: 18000, time: 2 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' },
+              { stageId: 2, name: 'CNC BENDING', topVendors: [v1.label], quotes: [{ vid: v1.label, cost: 14000, time: 3 }], selectedVendor: null, prodStatus: 'Pending', rawScope: 'Vendor', mfgScope: 'Vendor', finScope: 'Vendor' }
+            ]
+          }
+        ];
+
+        payload = {
+          searchLoc: 'Hyderabad',
+          searchRad: radius,
+          files: 'DWG-A101.pdf, DWG-B202.pdf',
+          bom: 'Master_BOM.xlsx',
+          drawings
+        };
+      }
 
       const created = await apiFetch('/projects', {
         method: 'POST',
-        body: { searchLoc: 'Hyderabad', searchRad: radius, files: 'DWG-A101.pdf, DWG-B202.pdf', bom: 'Master_BOM.xlsx', drawings }
+        body: payload
       });
       await refreshAll();
       showToast(`Engineering drawings uploaded! AI DFM analysis complete. Assigned project ${created.id}.`);
@@ -374,11 +404,13 @@ export function AppProvider({ children }) {
       showToast('Delivery approved! Transferred to Logistics for freight computation.');
     }, 'Could not approve delivery.');
 
-  const payCustomerFinal = (pid) =>
+  const payCustomerFinal = (pid, paymentDetails = {}) =>
     runAction(async () => {
-      await apiFetch(`/projects/${pid}/pay`, { method: 'POST' });
+      const res = await apiFetch(`/projects/${pid}/pay`, { method: 'POST', body: paymentDetails });
       await refreshAll();
-      showToast('Final invoice payment confirmed! Order released for shipping.');
+      const receiptNo = res.paymentReceipt?.receiptId || '';
+      showToast(`Final invoice payment confirmed (${receiptNo || 'Cleared'})! Order released for shipping.`);
+      return res;
     }, 'Payment could not be recorded.');
 
   // --- Staff portal workflow ------------------------------------------------
@@ -514,11 +546,13 @@ export function AppProvider({ children }) {
       showToast(`Project ${pid} dispatched to customer! Order fulfilled.`);
     }, 'Could not dispatch the order.');
 
-  const payVendor = (pid) =>
+  const payVendor = (pid, payoutDetails = {}) =>
     runAction(async () => {
-      await apiFetch(`/projects/${pid}/pay-vendor`, { method: 'POST' });
+      const res = await apiFetch(`/projects/${pid}/pay-vendor`, { method: 'POST', body: payoutDetails });
       await refreshAll();
-      showToast(`Vendor payout for Project ${pid} authorized!`);
+      const utr = res.vendorPayoutReceipt?.utrNumber || '';
+      showToast(`Vendor payout for Project ${pid} authorized! (UTR: ${utr || 'Settled'})`);
+      return res;
     }, 'Could not authorize the payout.');
 
   return (

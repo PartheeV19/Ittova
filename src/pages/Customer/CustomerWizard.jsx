@@ -51,12 +51,12 @@ export default function CustomerWizard({ onComplete, onCancel }) {
     reqCreditLimit: '₹ 25,00,000',
     msmeType: 'Medium Enterprise',
     udyamNo: '',
-    decTerms: true,
-    decTruth: true,
+    decTerms: false,
+    decTruth: false,
     // Step 6: Approvals & NDA
-    decNda: true,
-    apprRail: true,
-    apprDef: true,
+    decNda: false,
+    apprRail: false,
+    apprDef: false,
     apprAero: false,
     apprAuto: false
   });
@@ -148,22 +148,82 @@ export default function CustomerWizard({ onComplete, onCancel }) {
       'ITR_Acknowledgments_AY24_AY25.pdf',
       'GSTR_3B_1_Last_6_Months.pdf',
       'Bank_Statements_6_Months.pdf',
-      'Udyam_Registration_Certificate.pdf'
+      'Udyam_Registration_Certificate.pdf',
+      'RDSO_Approval_Certificate.pdf',
+      'DGQA_Defense_Clearance.pdf'
     ]));
 
     setStep(6);
-    showToast('Demo corporate profile loaded! Review dossier summary below.');
+    showToast('Demo corporate profile loaded with verified KYC documents! Review dossier summary below.');
   };
 
   const handleNext = () => {
-    if (step === 1 && !formData.name.trim()) {
-      showToast('Please enter Company Legal Name before proceeding.');
-      return;
+    // Section 1: Company Identity & Statutory Registrations
+    if (step === 1) {
+      if (!formData.name.trim()) return showToast('Please enter Company Legal Name.');
+      if (!formData.cin.trim()) return showToast('Please enter Corporate Identity Number (CIN/LLPIN).');
+      if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i.test(formData.pan.trim())) {
+        return showToast('Please enter a valid 10-character PAN number (e.g. AABCZ9876K).');
+      }
+      if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i.test(formData.gst.trim())) {
+        return showToast('Please enter a valid 15-character GSTIN (e.g. 36AABCZ9876K1Z8).');
+      }
+      if (!formData.address.trim()) return showToast('Please enter Registered Office Address.');
+      if (!formData.country.trim() || !formData.state.trim() || !formData.district.trim() || !formData.city.trim()) {
+        return showToast('Please complete country, state, district, and city for account code.');
+      }
+      if (!formData.signatoryName.trim() || !formData.signatoryPhone.trim() || !formData.signatoryEmail.trim()) {
+        return showToast('Please complete Authorised Signatory details.');
+      }
+      if (
+        !attachedDocs.has('Certificate_of_Incorporation.pdf') ||
+        !attachedDocs.has('Company_PAN_Card.pdf') ||
+        !attachedDocs.has('GST_REG06_Certificate.pdf')
+      ) {
+        return showToast('Mandatory statutory KYC missing: Please attach Certificate of Incorporation, PAN card, and GSTIN certificate.');
+      }
     }
-    if (step === 1 && !formData.country.trim()) return showToast('Please enter the country for your account ID.');
-    if (step === 1 && !formData.state.trim()) return showToast('Please enter the state or province for your account ID.');
-    if (step === 1 && !formData.district.trim()) return showToast('Please enter the district for your account ID.');
-    if (step === 1 && !formData.city.trim()) return showToast('Please enter the city or town for your account ID.');
+
+    // Section 2: Operations & Facilities
+    if (step === 2) {
+      if (!formData.factoryAddress.trim()) return showToast('Please enter Works / Manufacturing Plant physical address.');
+      if (!formData.deliveryAddress.trim()) return showToast('Please enter Default Material Receiving Dock / Address.');
+    }
+
+    // Section 3: Banking & Bank Confirmation
+    if (step === 3) {
+      if (!formData.bankName.trim() || !formData.bankBranch.trim()) return showToast('Please enter Bank Name and Branch.');
+      if (!formData.bankAcc.trim() || formData.bankAcc.trim().length < 8) return showToast('Please enter a valid Bank Account Number (min 8 digits).');
+      if (formData.bankAcc.trim() !== formData.bankAcc2.trim()) {
+        return showToast('Bank Account Numbers do not match! Please verify both fields.');
+      }
+      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/i.test(formData.bankIfsc.trim())) {
+        return showToast('Please enter a valid 11-digit IFSC code (e.g. SBIN0004123).');
+      }
+      if (!attachedDocs.has('Cancelled_Cheque_Attested.pdf')) {
+        return showToast('Bank confirmation proof required: Please attach a Cancelled Cheque or Certified Bank Header.');
+      }
+    }
+
+    // Section 4: Financials & Credit Proofs
+    if (step === 4) {
+      if (!isCashTier) {
+        const hasFinancials = attachedDocs.has('Audited_Financials_FY24_FY25.pdf');
+        const hasItr = attachedDocs.has('ITR_Acknowledgments_AY24_AY25.pdf');
+        const hasGst = attachedDocs.has('GSTR_3B_1_Last_6_Months.pdf');
+        const hasBankStmts = attachedDocs.has('Bank_Statements_6_Months.pdf');
+        if (!hasFinancials || !hasItr || !hasGst || !hasBankStmts) {
+          return showToast('Credit underwriting requires: Audited Financials, ITR, GST returns, and 6-Month Bank Statements.');
+        }
+      }
+    }
+
+    // Section 5: Statutory & Governance Undertakings
+    if (step === 5) {
+      if (!formData.decTerms) return showToast('You must accept the ITTOVA Standard Terms of Use & Sourcing Governance.');
+      if (!formData.decTruth) return showToast('You must certify the KYC Truthfulness & Anti-Bribery Declaration.');
+    }
+
     if (step < 6) setStep(step + 1);
   };
 
@@ -174,6 +234,7 @@ export default function CustomerWizard({ onComplete, onCancel }) {
   const handleSubmit = async (e) => {
     if (submitting) return;
     e.preventDefault();
+
     if (!formData.name.trim()) {
       showToast('Company Legal Name is required!');
       setStep(1);
@@ -182,6 +243,36 @@ export default function CustomerWizard({ onComplete, onCancel }) {
     if (![formData.country, formData.state, formData.district, formData.city].every(value => value.trim())) {
       showToast('Complete the country, state, district, and city in Section 1 to generate your account ID.');
       setStep(1);
+      return;
+    }
+
+    if (!formData.decTerms || !formData.decTruth) {
+      showToast('You must accept Terms of Use and certify KYC Truthfulness in Section 5.');
+      setStep(5);
+      return;
+    }
+
+    if (!formData.decNda) {
+      showToast('You must execute the Mutual Non-Disclosure Agreement (M-NDA) to complete onboarding.');
+      setStep(6);
+      return;
+    }
+
+    // Validate claimed sectoral approvals have certificates attached
+    if (formData.apprRail && !attachedDocs.has('RDSO_Approval_Certificate.pdf')) {
+      showToast('RDSO Railway Approval claimed: Please attach RDSO Approval Certificate proof in Section 6.');
+      return;
+    }
+    if (formData.apprDef && !attachedDocs.has('DGQA_Defense_Clearance.pdf')) {
+      showToast('Defence Clearance claimed: Please attach DGQA / MOD Clearance Certificate proof in Section 6.');
+      return;
+    }
+    if (formData.apprAero && !attachedDocs.has('ISO_9001_AS9100_Certificate.pdf')) {
+      showToast('Aerospace/ISO QA claimed: Please attach ISO 9001 / AS9100 Certificate proof in Section 6.');
+      return;
+    }
+    if (formData.apprAuto && !attachedDocs.has('IATF_16949_Certificate.pdf')) {
+      showToast('Automotive Tier-1 claimed: Please attach IATF 16949 Certificate proof in Section 6.');
       return;
     }
 
@@ -810,24 +901,60 @@ export default function CustomerWizard({ onComplete, onCancel }) {
                 <input type="checkbox" checked={formData.apprRail} onChange={e => updateField('apprRail', e.target.checked)} />
                 RDSO / Indian Railways Approved Vendor
               </label>
+              {formData.apprRail && (
+                <div 
+                  className={`file-upload-mock doc-upload-slot ${attachedDocs.has('RDSO_Approval_Certificate.pdf') ? 'uploaded' : ''}`}
+                  style={{ marginTop: '8px', minHeight: '36px', fontSize: '0.78rem' }}
+                  onClick={() => toggleDoc('RDSO_Approval_Certificate.pdf')}
+                >
+                  <span>{attachedDocs.has('RDSO_Approval_Certificate.pdf') ? '✓ RDSO_Approval_Certificate.pdf' : 'Attach RDSO Approval Certificate (Required)'}</span>
+                </div>
+              )}
             </div>
             <div className="inner-panel">
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 600, cursor: 'pointer' }}>
                 <input type="checkbox" checked={formData.apprDef} onChange={e => updateField('apprDef', e.target.checked)} />
                 DGQA / MOD Defence Clearance
               </label>
+              {formData.apprDef && (
+                <div 
+                  className={`file-upload-mock doc-upload-slot ${attachedDocs.has('DGQA_Defense_Clearance.pdf') ? 'uploaded' : ''}`}
+                  style={{ marginTop: '8px', minHeight: '36px', fontSize: '0.78rem' }}
+                  onClick={() => toggleDoc('DGQA_Defense_Clearance.pdf')}
+                >
+                  <span>{attachedDocs.has('DGQA_Defense_Clearance.pdf') ? '✓ DGQA_Defense_Clearance.pdf' : 'Attach DGQA Clearance Certificate (Required)'}</span>
+                </div>
+              )}
             </div>
             <div className="inner-panel">
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 600, cursor: 'pointer' }}>
                 <input type="checkbox" checked={formData.apprAero} onChange={e => updateField('apprAero', e.target.checked)} />
                 ISO 9001 / Standard Quality Assurance Certified
               </label>
+              {formData.apprAero && (
+                <div 
+                  className={`file-upload-mock doc-upload-slot ${attachedDocs.has('ISO_9001_AS9100_Certificate.pdf') ? 'uploaded' : ''}`}
+                  style={{ marginTop: '8px', minHeight: '36px', fontSize: '0.78rem' }}
+                  onClick={() => toggleDoc('ISO_9001_AS9100_Certificate.pdf')}
+                >
+                  <span>{attachedDocs.has('ISO_9001_AS9100_Certificate.pdf') ? '✓ ISO_9001_AS9100_Certificate.pdf' : 'Attach ISO / AS9100 Certificate (Required)'}</span>
+                </div>
+              )}
             </div>
             <div className="inner-panel">
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 600, cursor: 'pointer' }}>
                 <input type="checkbox" checked={formData.apprAuto} onChange={e => updateField('apprAuto', e.target.checked)} />
                 IATF 16949 / Automotive Tier-1 Approved
               </label>
+              {formData.apprAuto && (
+                <div 
+                  className={`file-upload-mock doc-upload-slot ${attachedDocs.has('IATF_16949_Certificate.pdf') ? 'uploaded' : ''}`}
+                  style={{ marginTop: '8px', minHeight: '36px', fontSize: '0.78rem' }}
+                  onClick={() => toggleDoc('IATF_16949_Certificate.pdf')}
+                >
+                  <span>{attachedDocs.has('IATF_16949_Certificate.pdf') ? '✓ IATF_16949_Certificate.pdf' : 'Attach IATF 16949 Certificate (Required)'}</span>
+                </div>
+              )}
             </div>
           </div>
 

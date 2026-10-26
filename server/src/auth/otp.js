@@ -17,10 +17,13 @@ export async function issueOtp(contact, purpose = 'signup', destinations = [cont
     // Sorted destination locks serialize overlapping requests across API workers.
     for (const destination of [...new Set(destinations)].sort()) {
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [destination]);
+      const isDevMode = process.env.OTP_DEV_MODE === 'true' && process.env.NODE_ENV !== 'production';
+      const maxPerHour = isDevMode ? 20 : 5;
+      const cooldownSeconds = isDevMode ? 30 : 60;
       const recent = await client.query(
-        `SELECT COUNT(*)::int AS total, MAX(created_at) > now() - interval '60 seconds' AS cooling_down
+        `SELECT COUNT(*)::int AS total, MAX(created_at) > now() - interval '${cooldownSeconds} seconds' AS cooling_down
          FROM otp_codes WHERE $1 = ANY(destinations) AND created_at > now() - interval '1 hour'`, [destination]);
-      if (recent.rows[0].cooling_down || recent.rows[0].total >= 5) {
+      if (recent.rows[0].cooling_down || recent.rows[0].total >= maxPerHour) {
         throw Object.assign(new Error('Too many OTP requests. Please wait before trying again.'), { statusCode: 429 });
       }
     }

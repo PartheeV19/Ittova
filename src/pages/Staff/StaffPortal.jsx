@@ -32,6 +32,13 @@ export default function StaffPortal() {
   const [auditScores, setAuditScores] = useState({});
   const [freightFees, setFreightFees] = useState({});
 
+  const isSupervisorOrAdmin = ['admin', 'ADMIN', 'STAFF_GENERAL', 'staff'].includes(activeStaff?.role);
+  const [selectedQueue, setSelectedQueue] = useState(
+    isSupervisorOrAdmin ? 'CUSTOMER_AUDIT' : (activeStaff?.role || 'CUSTOMER_AUDIT')
+  );
+
+  const effectiveRole = isSupervisorOrAdmin ? selectedQueue : activeStaff?.role;
+
   if (!activeStaff) {
     return (
       <div className="view">
@@ -60,8 +67,37 @@ export default function StaffPortal() {
         </div>
       </div>
 
+      {/* Department Work Queue Selector for Administrators & Supervisors */}
+      {isSupervisorOrAdmin && (
+        <div className="card" style={{ padding: '12px 16px', marginBottom: 'var(--sp-4)' }}>
+          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+            Operational Command Queue (Admin Master Access):
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {[
+              { id: 'CUSTOMER_AUDIT', label: '1. Customer Audit' },
+              { id: 'VENDOR_AUDIT', label: '2. Supplier Audit' },
+              { id: 'PROCESS_VALIDATOR', label: '3. Process Validator' },
+              { id: 'VENDOR_VALIDATOR', label: '4. Vendor Validator' },
+              { id: 'LOGISTICS', label: '5. Logistics' },
+              { id: 'INSPECTOR', label: '6. Quality Inspector' }
+            ].map(q => (
+              <button
+                key={q.id}
+                type="button"
+                className={`btn btn-sm ${effectiveRole === q.id ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ fontSize: '0.8rem' }}
+                onClick={() => setSelectedQueue(q.id)}
+              >
+                {q.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 1. CUSTOMER AUDIT */}
-      {activeStaff.role === 'CUSTOMER_AUDIT' && (
+      {effectiveRole === 'CUSTOMER_AUDIT' && (
         <div>
           <div className="view-section-title">
             <h3>Customer Compliance Registrations &amp; Credit Underwriting</h3>
@@ -99,6 +135,14 @@ export default function StaffPortal() {
                     <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>Products:</strong> {c.product || 'Sub-Assemblies'}</p>
                     <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>Bank:</strong> {c.bankName || 'State Bank of India'} &bull; {c.bankBranch || 'Hyderabad'}</p>
                     <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>A/c No:</strong> {c.bankAcc || '••••••••'} (IFSC: {c.bankIfsc || 'N/A'})</p>
+                    <p style={{ fontSize: '0.8rem', margin: '2px 0' }}>
+                      <strong>Bank Proof:</strong>{' '}
+                      {c.attachedDocs?.some(d => /cheque|statement/i.test(d)) ? (
+                        <span className="text-success">&check; Attested Cheque on Record</span>
+                      ) : (
+                        <span className="text-danger">&cross; Missing Confirmation Proof</span>
+                      )}
+                    </p>
                   </div>
 
                   <div className="inner-panel">
@@ -107,7 +151,14 @@ export default function StaffPortal() {
                     <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>Requested Limit:</strong> <strong>{c.reqCreditLimit || '₹ 25,00,000'}</strong></p>
                     <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>MSME Category:</strong> {c.msmeType || 'Medium Enterprise'}</p>
                     <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>Udyam Reg:</strong> {c.udyamNo || 'N/A'}</p>
-                    <p style={{ fontSize: '0.8rem', margin: '2px 0' }}><strong>M-NDA Executed:</strong> <span className="text-success">&check; Certified</span></p>
+                    <p style={{ fontSize: '0.8rem', margin: '2px 0' }}>
+                      <strong>M-NDA Executed:</strong>{' '}
+                      {c.decNda ? <span className="text-success">&check; Certified</span> : <span className="text-danger">&cross; Unsigned</span>}
+                    </p>
+                    <p style={{ fontSize: '0.8rem', margin: '2px 0' }}>
+                      <strong>Undertakings:</strong>{' '}
+                      {c.decTerms && c.decTruth ? <span className="text-success">&check; Confirmed</span> : <span className="text-danger">&cross; Unconfirmed</span>}
+                    </p>
                   </div>
                 </div>
 
@@ -173,7 +224,7 @@ export default function StaffPortal() {
       )}
 
       {/* 2. VENDOR AUDIT */}
-      {activeStaff?.role === 'VENDOR_AUDIT' && (
+      {effectiveRole === 'VENDOR_AUDIT' && (
         <div>
           <div className="view-section-title">
             <h3>Supplier Facility Audits &amp; Capability Rating</h3>
@@ -227,7 +278,7 @@ export default function StaffPortal() {
       )}
 
       {/* 3. PROCESS VALIDATOR */}
-      {activeStaff?.role === 'PROCESS_VALIDATOR' && (
+      {effectiveRole === 'PROCESS_VALIDATOR' && (
         <div>
           <div className="view-section-title">
             <h3>AI Drawing Spec Verification &amp; Process Decomposition</h3>
@@ -304,7 +355,7 @@ export default function StaffPortal() {
       )}
 
       {/* 4. VENDOR VALIDATOR */}
-      {activeStaff?.role === 'VENDOR_VALIDATOR' && (
+      {effectiveRole === 'VENDOR_VALIDATOR' && (
         <div>
           <div className="view-section-title">
             <h3>Supplier Matching, Margin Audits &amp; PO Release</h3>
@@ -391,7 +442,7 @@ export default function StaffPortal() {
       )}
 
       {/* 5. LOGISTICS */}
-      {activeStaff?.role === 'LOGISTICS' && (
+      {effectiveRole === 'LOGISTICS' && (
         <div>
           <div className="view-section-title">
             <h3>Logistics, Fleet Dispatch &amp; Warehouse Transit</h3>
@@ -477,7 +528,7 @@ export default function StaffPortal() {
       )}
 
       {/* 6. INSPECTOR */}
-      {activeStaff?.role === 'INSPECTOR' && (
+      {effectiveRole === 'INSPECTOR' && (
         <div>
           <div className="view-section-title">
             <h3>Inward Quality Control, CMM &amp; ISO Conformance</h3>

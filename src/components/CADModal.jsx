@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import CADModelAnalyzer from './CADModelAnalyzer';
 
 export default function CADModal() {
-  const { cadModal, setCadModal } = useApp();
+  const { cadModal, setCadModal, db } = useApp();
   const dialog = useRef(null);
 
   useEffect(() => {
@@ -20,7 +20,12 @@ export default function CADModal() {
 
   if (!cadModal) return null;
 
-  const presetId = cadModal.presetId || (cadModal.pid === 'PRJ-1082' ? 'shaft-precision-drive' : 'flange-hydraulic-manifold');
+  const project = cadModal.pid ? db.projects.find((p) => p.id === cadModal.pid) : null;
+  const firstDrawing = project?.drawings?.[0];
+  const drawingImage = firstDrawing?.drawingData || cadModal.drawingData || null;
+  const drawingMime = firstDrawing?.drawingMime || cadModal.drawingMime || 'image/png';
+  const drawingSvg = firstDrawing?.drawingSvg || cadModal.drawingSvg || null;
+  const presetId = cadModal.presetId || firstDrawing?.presetId || (cadModal.pid === 'PRJ-1082' ? 'shaft-precision-drive' : 'flange-hydraulic-manifold');
 
   return (
     <dialog
@@ -34,6 +39,10 @@ export default function CADModal() {
     >
       <CADModelAnalyzer
         initialPresetId={presetId}
+        initialImage={drawingImage}
+        initialMimeType={drawingMime}
+        initialSvg={drawingSvg}
+        project={project}
         onClose={() => setCadModal(null)}
       />
     </dialog>

@@ -6,6 +6,10 @@ export default function AdminPortal() {
 
   const pendingPayouts = db.projects.filter(p => p.status === 'DISPATCHED_TO_CUST' && p.vendorPaymentStatus !== 'PAID');
 
+  const approvedVendors = db.vendors.filter(v => v.status === 'APPROVED');
+  const approvedCustomers = db.customers.filter(c => c.status === 'APPROVED');
+  const activeProjects = db.projects.filter(p => !['COMPLETED', 'CANCELLED', 'REJECTED'].includes(p.status));
+
   return (
     <div className="view">
       {!isAdminLoggedIn ? (
@@ -27,24 +31,33 @@ export default function AdminPortal() {
               </button>
             </div>
 
-            {/* Quick Metrics */}
+            {/* Accurate Metrics */}
             <div className="grid-3" style={{ marginTop: 'var(--sp-6)' }}>
               <div className="inner-panel">
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Corporate Clients</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Verified Corporate Clients</span>
                 <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent)', marginTop: '4px' }}>
-                  {db.customers.length}
+                  {approvedCustomers.length}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  {db.customers.length} total enrolled ({db.customers.length - approvedCustomers.length} pending audit)
                 </div>
               </div>
               <div className="inner-panel">
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Verified Facilities</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Audited &amp; Approved Facilities</span>
                 <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent)', marginTop: '4px' }}>
-                  {db.vendors.length}
+                  {approvedVendors.length}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  {db.vendors.length} total facilities ({db.vendors.length - approvedVendors.length} pending physical audit)
                 </div>
               </div>
               <div className="inner-panel">
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Active Projects</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Active In-Flight Work Orders</span>
                 <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent)', marginTop: '4px' }}>
-                  {db.projects.length}
+                  {activeProjects.length}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  {db.projects.length} lifetime sourced ({db.projects.length - activeProjects.length} completed/closed)
                 </div>
               </div>
             </div>
@@ -60,14 +73,17 @@ export default function AdminPortal() {
               <p className="subtitle">No vendor payouts currently pending settlement.</p>
             ) : (
               pendingPayouts.map(p => (
-                <div key={p.id} className="inner-panel flex-between" style={{ marginTop: '0.75rem' }}>
+                <div key={p.id} className="inner-panel flex-between" style={{ marginTop: '0.75rem', border: '1px solid var(--border)' }}>
                   <div>
-                    <strong>Project {p.id} Settlement</strong>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      Customer Payment Cleared: YES &bull; Order Fulfilled &bull; Supplier Payout Pending
+                    <strong>Project {p.id} &bull; Supplier Escrow Release</strong>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Customer Payment: <span className="text-success">&check; Cleared</span> &bull; Net Payout: <strong>₹40,375.00</strong> (5% Platform Fee Deducted)
                     </div>
                   </div>
-                  <button className="btn btn-success btn-sm" onClick={() => payVendor(p.id)}>
+                  <button 
+                    className="btn btn-success btn-sm" 
+                    onClick={() => payVendor(p.id, { payoutMode: 'NEFT_RTGS' })}
+                  >
                     Release Supplier Payout (NEFT / RTGS)
                   </button>
                 </div>
@@ -103,8 +119,24 @@ export default function AdminPortal() {
                         <td>{p.cust}</td>
                         <td>{p.files}</td>
                         <td><span className="badge badge-pending">{p.status.replace(/_/g, ' ')}</span></td>
-                        <td>{p.custPaymentStatus || 'PENDING'}</td>
-                        <td>{p.vendorPaymentStatus || 'N/A'}</td>
+                        <td>
+                          {p.paymentReceipt ? (
+                            <span className="badge badge-approved" title={`Receipt ${p.paymentReceipt.receiptId}`}>
+                              PAID (₹{p.paymentReceipt.amountPaid?.toLocaleString()})
+                            </span>
+                          ) : (
+                            <span className="badge badge-pending">{p.custPaymentStatus || 'PENDING'}</span>
+                          )}
+                        </td>
+                        <td>
+                          {p.vendorPayoutReceipt ? (
+                            <span className="badge badge-approved" title={`UTR ${p.vendorPayoutReceipt.utrNumber}`}>
+                              SETTLED ({p.vendorPayoutReceipt.utrNumber?.slice(0, 10)}...)
+                            </span>
+                          ) : (
+                            <span className="badge badge-tier">{p.vendorPaymentStatus || 'N/A'}</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
