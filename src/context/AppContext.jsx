@@ -124,6 +124,52 @@ export function AppProvider({ children }) {
   const loadAccountPage = useCallback((profileId) =>
     apiFetch(`/accounts/${encodeURIComponent(profileId)}`), []);
 
+  const formatNameFromEmail = (email = '') => {
+    const raw = (email || '').replace(/@.*$/, '').replace(/[^a-zA-Z]/g, ' ').trim();
+    if (!raw) return '';
+    return raw.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  };
+
+  const getStoredVisitor = () => {
+    try {
+      const raw = localStorage.getItem('ITOVA_VISITOR');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // Starting gate visitor intake profile -- pre-auth, so this can stay local.
+  const [visitorProfile, setVisitorProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ITOVA_VISITOR');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const saveVisitorProfile = (profile) => {
+    setVisitorProfile(profile);
+    try {
+      localStorage.setItem('ITOVA_VISITOR', JSON.stringify(profile));
+    } catch (e) {
+      console.error(e);
+    }
+    setCurrentView('home', true);
+  };
+
+  const clearVisitorProfile = () => {
+    setVisitorProfile(null);
+    try {
+      localStorage.removeItem('ITOVA_VISITOR');
+    } catch (e) {
+      console.error(e);
+    }
+    setCurrentView('home');
+    showToast('Visitor session reset. Please re-enter basic details.');
+  };
+
   const applySession = useCallback(async (session) => {
     if (!session) {
       setCurrentUser(null);
@@ -131,20 +177,62 @@ export function AppProvider({ children }) {
       return;
     }
     const profile = await loadOwnProfile(session.role);
+    const storedVisitor = getStoredVisitor();
+    const cleanEmail = (session.email || '').replace(/@phone\.ittova\.internal$/, '');
+    const emailName = formatNameFromEmail(cleanEmail);
+
+    const resolvedName = session.profileData?.fullName
+      || profile?.name
+      || visitorProfile?.name
+      || storedVisitor?.name
+      || session.profileData?.company
+      || visitorProfile?.company
+      || storedVisitor?.company
+      || emailName
+      || cleanEmail
+      || 'User';
+
+    const resolvedParticipantRole = session.profileData?.participantRole
+      || visitorProfile?.role
+      || storedVisitor?.role
+      || '';
+
+    const resolvedCompany = session.profileData?.company
+      || visitorProfile?.company
+      || storedVisitor?.company
+      || '';
+
     const user = {
       accountId: session.accountId,
       role: session.role,
       id: profile?.id || session.publicId || '',
       publicId: session.publicId || profile?.id || '',
-      name: profile?.name || session.profileData?.fullName || session.profileData?.company || ''
+      name: resolvedName,
+      participantRole: resolvedParticipantRole,
+      company: resolvedCompany,
+      email: cleanEmail
     };
+
     setCurrentUser(user);
     if (user.role === 'customer' && user.id) setSelectedCustomerId(user.id);
     if (user.role === 'supplier' && user.id) setSelectedVendorId(user.id);
     if (user.role === 'staff' && user.id) setSelectedStaffId(user.id);
     if (user.role === 'admin') setIsAdminLoggedIn(true);
+
+    // If backend profile_data was missing fullName or participantRole, sync the local details to backend
+    if ((!session.profileData?.fullName && resolvedName) || (!session.profileData?.participantRole && resolvedParticipantRole)) {
+      apiFetch('/auth/profile', {
+        method: 'PATCH',
+        body: {
+          fullName: resolvedName,
+          company: resolvedCompany,
+          participantRole: resolvedParticipantRole
+        }
+      }).catch(() => {});
+    }
+
     return user;
-  }, [loadOwnProfile]);
+  }, [loadOwnProfile, visitorProfile]);
 
   // Restore an existing session on load (page refresh, new tab, etc.).
   useEffect(() => {
@@ -200,36 +288,7 @@ export function AppProvider({ children }) {
 
   useEffect(() => { if (authChecked) refreshAll(); }, [authChecked, refreshAll]);
 
-  // Starting gate visitor intake profile -- pre-auth, so this can stay local.
-  const [visitorProfile, setVisitorProfile] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ITOVA_VISITOR');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
 
-  const saveVisitorProfile = (profile) => {
-    setVisitorProfile(profile);
-    try {
-      localStorage.setItem('ITOVA_VISITOR', JSON.stringify(profile));
-    } catch (e) {
-      console.error(e);
-    }
-    setCurrentView('home', true);
-  };
-
-  const clearVisitorProfile = () => {
-    setVisitorProfile(null);
-    try {
-      localStorage.removeItem('ITOVA_VISITOR');
-    } catch (e) {
-      console.error(e);
-    }
-    setCurrentView('home');
-    showToast('Visitor session reset. Please re-enter basic details.');
-  };
 
   const resetDatabase = () => {
     refreshAll();
@@ -262,10 +321,7 @@ export function AppProvider({ children }) {
       const session = await apiFetch('/auth/otp/verify', { method: 'POST', body: { contact, code, role, purpose, profile } });
       if (onVerified) onVerified();
       const user = await applySession(session);
-      if (purpose === 'signup') {
-        const target = role === 'supplier' ? 'vendor' : role === 'finance_partner' ? 'finance' : role === 'material_partner' ? 'materials' : 'customer';
-        setCurrentView(target, true);
-      } else setCurrentView('home', true);
+      setCurrentView('home', true);
       return user;
     }, 'Invalid or expired code.');
 
@@ -296,6 +352,9 @@ export function AppProvider({ children }) {
     setSelectedVendorId('');
     setSelectedStaffId('');
     setIsAdminLoggedIn(false);
+    // Clear the visitor profile so the StartingGate shows fresh
+    setVisitorProfile(null);
+    try { localStorage.removeItem('ITOVA_VISITOR'); } catch { /* ignore */ }
     setCurrentView('home');
   };
 

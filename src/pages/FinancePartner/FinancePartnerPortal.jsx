@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import FinancePartnerWizard from './FinancePartnerWizard';
 
 export default function FinancePartnerPortal() {
   const { currentUser, db, showToast } = useApp();
@@ -10,6 +11,7 @@ export default function FinancePartnerPortal() {
   });
   const [selectedFactorReq, setSelectedFactorReq] = useState(null);
   const [sanctionNotes, setSanctionNotes] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
 
   // Sample partner details fallback if currentUser has generic fields
   const partnerName = currentUser?.name || 'HDFC Industrial Capital & NBFC Consortium';
@@ -73,9 +75,24 @@ export default function FinancePartnerPortal() {
             <span className="badge badge-info" style={{ fontSize: '0.8rem', padding: '6px 12px' }}>
               AA+ Credit Line
             </span>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setIsRegistering(v => !v)}
+              style={{ fontSize: '0.82rem' }}
+            >
+              {isRegistering ? 'View Active Workspace' : '+ Register Lending Partner / Edit Dossier'}
+            </button>
           </div>
         </div>
       </div>
+
+      {isRegistering && (
+        <FinancePartnerWizard
+          onComplete={() => setIsRegistering(false)}
+          onCancel={() => setIsRegistering(false)}
+        />
+      )}
 
       {/* KPI Metrics */}
       <div className="grid-4" style={{ gap: '16px', marginBottom: 'var(--sp-4)' }}>

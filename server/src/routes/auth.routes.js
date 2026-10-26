@@ -52,10 +52,20 @@ router.post('/otp/verify', async (request, response) => {
     return response.status(401).json({ error: 'Unable to sign in with these account details.' });
   }
 
-  // Use the existing account's role, not the submitted one (handles re-registration with different role selection).
-  const effectiveRole = account ? account.role : role;
   const ok = await verifyOtp(contact, code, purpose);
   if (!ok) return response.status(401).json({ error: 'Invalid or expired code.' });
+
+  const PARTICIPANT_ROLE_NAMES = {
+    customer: 'Industrial Buyer / OEM',
+    supplier: 'Manufacturing Facility / Vendor',
+    finance_partner: 'Bank / NBFC Financier',
+    material_partner: 'Raw Material & Testing Partner',
+  };
+
+  const targetRole = ALLOWED_PARTICIPANT_ROLES.includes(role) ? role : (account ? account.role : 'customer');
+  const selectedParticipantRole = (typeof profile?.participantRole === 'string' && profile.participantRole.trim())
+    ? profile.participantRole.trim()
+    : (PARTICIPANT_ROLE_NAMES[targetRole] || '');
 
   if (!account) {
     const userEmail = isEmail
@@ -65,19 +75,39 @@ router.post('/otp/verify', async (request, response) => {
           : `${contact.replace(/[^0-9]/g, '')}@phone.ittova.internal`);
 
     const profileData = {
-      fullName: profile.fullName.trim(),
-      company: profile.company.trim(),
-      phone: typeof profile.phone === 'string' && profile.phone.trim() ? profile.phone.trim() : (!isEmail ? contact : ''),
-      participantRole: typeof profile.participantRole === 'string' ? profile.participantRole.trim() : ''
+      fullName: typeof profile?.fullName === 'string' ? profile.fullName.trim() : '',
+      company: typeof profile?.company === 'string' ? profile.company.trim() : '',
+      phone: typeof profile?.phone === 'string' && profile.phone.trim() ? profile.phone.trim() : (!isEmail ? contact : ''),
+      participantRole: selectedParticipantRole
     };
     const created = await pool.query(
       `INSERT INTO app_users (email, password_hash, role, status, profile_data)
-       VALUES ($1, '', $2, 'active', $3) ON CONFLICT DO NOTHING
-       RETURNING id, role, status, public_id, identity_codes, profile_data`,
-      [userEmail, effectiveRole, JSON.stringify(profileData)]);
+       VALUES ($1, '', $2, 'active', $3)
+       RETURNING id, role, status, public_id, identity_codes, profile_data, email`,
+      [userEmail, targetRole, JSON.stringify(profileData)]);
     account = created.rows[0] || (await pool.query(
-      'SELECT id, role, status, public_id, identity_codes, profile_data FROM app_users WHERE lower(email) = $1', [userEmail]
+      'SELECT id, role, status, public_id, identity_codes, profile_data, email FROM app_users WHERE lower(email) = $1', [userEmail]
     )).rows[0];
+  } else {
+    // Existing account: update with role and profile fields submitted during the login phase
+    const existingData = account.profile_data || {};
+    const mergedProfileData = {
+      ...existingData,
+      ...(typeof profile?.fullName === 'string' && profile.fullName.trim() ? { fullName: profile.fullName.trim() } : {}),
+      ...(typeof profile?.company === 'string' && profile.company.trim() ? { company: profile.company.trim() } : {}),
+      ...(typeof profile?.phone === 'string' && profile.phone.trim() ? { phone: profile.phone.trim() } : {}),
+      participantRole: selectedParticipantRole || existingData.participantRole || PARTICIPANT_ROLE_NAMES[targetRole] || ''
+    };
+    const updated = await pool.query(
+      `UPDATE app_users
+       SET role = $1,
+           profile_data = $2,
+           updated_at = NOW()
+       WHERE id = $3
+       RETURNING id, role, status, public_id, identity_codes, profile_data, email`,
+      [targetRole, JSON.stringify(mergedProfileData), account.id]
+    );
+    account = updated.rows[0] || account;
   }
   if (!account || account.status !== 'active') {
     return response.status(401).json({ error: 'Unable to sign in with these account details.' });
@@ -86,10 +116,11 @@ router.post('/otp/verify', async (request, response) => {
   response.cookie(SESSION_COOKIE_NAME, rawToken, sessionCookieOptions());
   response.set('Cache-Control', 'no-store').json({
     accountId: account.id,
-    role: account.role,  // always the stored role
+    role: account.role,
     expiresAt,
     publicId: account.public_id,
-    profileData: account.profile_data
+    profileData: account.profile_data,
+    email: account.email
   });
 });
 
@@ -131,6 +162,42 @@ router.post('/logout', async (request, response) => {
 router.get('/me', (request, response) => {
   if (!request.user) return response.status(401).json({ error: 'Not signed in.' });
   response.json(request.user);
+});
+
+router.patch('/profile', async (request, response) => {
+  if (!request.user) return response.status(401).json({ error: 'Not signed in.' });
+  const { fullName, company, phone, participantRole, role } = request.body || {};
+  const pool = getPool();
+  const current = await pool.query('SELECT role, profile_data FROM app_users WHERE id = $1', [request.user.accountId]);
+  if (current.rowCount === 0) return response.status(404).json({ error: 'User not found.' });
+
+  const existingProfileData = current.rows[0].profile_data || {};
+  const updatedProfileData = {
+    ...existingProfileData,
+    ...(typeof fullName === 'string' && fullName.trim() ? { fullName: fullName.trim() } : {}),
+    ...(typeof company === 'string' && company.trim() ? { company: company.trim() } : {}),
+    ...(typeof phone === 'string' && phone.trim() ? { phone: phone.trim() } : {}),
+    ...(typeof participantRole === 'string' && participantRole.trim() ? { participantRole: participantRole.trim() } : {})
+  };
+
+  const ALLOWED_PARTICIPANT_ROLES = ['customer', 'supplier', 'finance_partner', 'material_partner'];
+  const updatedRole = role && ALLOWED_PARTICIPANT_ROLES.includes(role) ? role : current.rows[0].role;
+
+  const result = await pool.query(
+    `UPDATE app_users
+     SET profile_data = $1, role = $2, updated_at = NOW()
+     WHERE id = $3
+     RETURNING id, role, status, public_id, profile_data, email`,
+    [JSON.stringify(updatedProfileData), updatedRole, request.user.accountId]
+  );
+
+  response.json({
+    accountId: result.rows[0].id,
+    role: result.rows[0].role,
+    publicId: result.rows[0].public_id,
+    profileData: result.rows[0].profile_data,
+    email: result.rows[0].email
+  });
 });
 
 export default router;

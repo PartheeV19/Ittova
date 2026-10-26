@@ -248,6 +248,14 @@ export default function CustomerPortal() {
                 <span className="badge badge-tier">
                   {activeCustomer.creditTier || activeCustomer.reqCreditTier || 'Advance Tier'}
                 </span>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setIsRegistering(v => !v)}
+                  style={{ fontSize: '0.82rem' }}
+                >
+                  {isRegistering ? 'View Requirements' : '+ Onboard Corporate Customer / Edit KYC'}
+                </button>
               </div>
             ) : (
               <span className="badge badge-pending">Registration Pending</span>

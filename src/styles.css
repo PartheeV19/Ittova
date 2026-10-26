@@ -445,6 +445,27 @@ p.subtitle {
   border-radius: var(--r-xs);
 }
 
+.nav-user-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 0.3rem 0.75rem 0.3rem 0.45rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.nav-user-chip-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
 .nav-logout-btn {
   display: inline-flex;
   align-items: center;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import LiveStepper from '../../components/LiveStepper';
+import VendorWizard from './VendorWizard';
 
 export default function SupplierPortal() {
   const { 
@@ -272,143 +273,11 @@ export default function SupplierPortal() {
 
       {/* Facility Registration / Onboarding Screen */}
       {(!activeVendor || isRegistering) && (
-        <div className="card card-accent" style={{ marginBottom: 'var(--sp-6)' }}>
-          <div className="flex-between" style={{ marginBottom: 'var(--sp-5)' }}>
-            <div>
-              <div className="kicker">Manufacturing Partner Onboarding</div>
-              <h2 style={{ marginBottom: '0.25rem' }}>Supplier &amp; Machinery Matrix Registration</h2>
-              <p className="subtitle" style={{ marginBottom: 0 }}>
-                Register CNC machines, working envelopes, and certifications. The ITTOVA Vendor Audit team performs physical verification before order routing.
-              </p>
-            </div>
-            <button 
-              type="button" 
-              className="btn btn-secondary btn-sm"
-              onClick={handleDemoFill}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <span>⚡</span> Fill Demo Facility Data
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            <div className="grid-2">
-              <div>
-                <label>Facility / Corporate Name <span className="text-danger">*</span></label>
-                <input 
-                  type="text" 
-                  value={formData.name} 
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Industrial CNC Machining Works" 
-                />
-              </div>
-              <div>
-                <label>Facility Physical Location <span className="text-danger">*</span></label>
-                <input 
-                  type="text" 
-                  value={formData.location} 
-                  onChange={e => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="Cherlapally Industrial Area, Hyderabad" 
-                />
-              </div>
-              <div>
-                <label>Operational Phone <span className="text-danger">*</span></label>
-                <input 
-                  type="text" 
-                  value={formData.phone} 
-                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+91 87654 32109" 
-                />
-              </div>
-              <div>
-                <label>Official Email <span className="text-danger">*</span></label>
-                <input 
-                  type="email" 
-                  value={formData.email} 
-                  onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="orders@facility.com" 
-                />
-              </div>
-            </div>
-
-            <div className="view-section-title" style={{ marginTop: 'var(--sp-4)' }}>
-              <h3>Account ID Location</h3>
-              <p className="subtitle" style={{ marginBottom: 0 }}>ITOVA assigns the location codes automatically from these details.</p>
-            </div>
-            <div className="grid-2">
-              {[
-                ['country', 'Country', 'e.g. India'],
-                ['state', 'State / Province', 'e.g. Telangana'],
-                ['district', 'District', 'e.g. Hyderabad'],
-                ['city', 'City / Town', 'e.g. Hyderabad']
-              ].map(([field, label, placeholder]) => (
-                <div key={field}>
-                  <label htmlFor={`supplier-${field}`}>{label} <span className="text-danger">*</span></label>
-                  <input
-                    id={`supplier-${field}`}
-                    type="text"
-                    maxLength={120}
-                    autoComplete={field === 'country' ? 'country-name' : 'off'}
-                    value={formData[field]}
-                    onChange={e => setFormData({ ...formData, [field]: e.target.value })}
-                    placeholder={placeholder}
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="view-section-title" style={{ marginTop: 'var(--sp-6)' }}>
-              <h3>Machinery Capability Matrix</h3>
-            </div>
-
-            <div className="grid-2">
-              <div className="machine-block">
-                <h4>Machine 1</h4>
-                <label>Make &amp; Model</label>
-                <input type="text" value={formData.m1_name} onChange={e => setFormData({ ...formData, m1_name: e.target.value })} placeholder="Trumpf TruLaser 3030" />
-                <label>Process Capability</label>
-                <input type="text" value={formData.m1_proc} onChange={e => setFormData({ ...formData, m1_proc: e.target.value })} placeholder="CNC LASER CUTTING" />
-                <label>Max Work Envelope</label>
-                <input type="text" value={formData.m1_size} onChange={e => setFormData({ ...formData, m1_size: e.target.value })} placeholder="2000 × 4000 mm" />
-                <label>Axis / Power Specification</label>
-                <input type="text" value={formData.m1_axis} onChange={e => setFormData({ ...formData, m1_axis: e.target.value })} placeholder="6 kW Fiber Laser" />
-                <label>Supported Materials</label>
-                <input type="text" value={formData.m1_mat} onChange={e => setFormData({ ...formData, m1_mat: e.target.value })} placeholder="MS, SS, Aluminum" />
-                <label>Hourly Rate (₹ / hr)</label>
-                <input type="number" value={formData.m1_rate} onChange={e => setFormData({ ...formData, m1_rate: e.target.value })} placeholder="2500" />
-              </div>
-
-              <div className="machine-block">
-                <h4>Machine 2</h4>
-                <label>Make &amp; Model</label>
-                <input type="text" value={formData.m2_name} onChange={e => setFormData({ ...formData, m2_name: e.target.value })} placeholder="Amada Press Brake 130T" />
-                <label>Process Capability</label>
-                <input type="text" value={formData.m2_proc} onChange={e => setFormData({ ...formData, m2_proc: e.target.value })} placeholder="CNC BENDING" />
-                <label>Max Work Envelope</label>
-                <input type="text" value={formData.m2_size} onChange={e => setFormData({ ...formData, m2_size: e.target.value })} placeholder="3000 mm" />
-                <label>Axis / Power Specification</label>
-                <input type="text" value={formData.m2_axis} onChange={e => setFormData({ ...formData, m2_axis: e.target.value })} placeholder="7-Axis CNC" />
-                <label>Supported Materials</label>
-                <input type="text" value={formData.m2_mat} onChange={e => setFormData({ ...formData, m2_mat: e.target.value })} placeholder="MS, SS" />
-                <label>Hourly Rate (₹ / hr)</label>
-                <input type="number" value={formData.m2_rate} onChange={e => setFormData({ ...formData, m2_rate: e.target.value })} placeholder="1200" />
-              </div>
-            </div>
-
-            <div style={{ marginTop: 'var(--sp-5)', display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
-              <button type="submit" className="btn">
-                Submit Facility Application
-              </button>
-              {activeVendor && (
-                <button type="button" className="btn btn-secondary" onClick={() => setIsRegistering(false)}>
-                  Cancel
-                </button>
-              )}
-            </div>
-          </form>
-        </div>
+        <VendorWizard
+          onComplete={() => setIsRegistering(false)}
+          onCancel={activeVendor ? () => setIsRegistering(false) : null}
+        />
       )}
-
       {/* Main Vendor Dashboard */}
       {activeVendor && !isRegistering && (
         <div>

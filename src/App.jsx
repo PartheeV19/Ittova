@@ -38,27 +38,12 @@ export default function App() {
     );
   }
 
-  const renderWorkspace = () => (
+  const renderPortalLayout = (portalElement) => (
     <main className="container" id="app-container" style={{ padding: '2.5rem clamp(20px, 4vw, 64px) 5rem' }}>
       {dbLoading && <p role="status">Refreshing workspace...</p>}
-      {currentUser?.role === 'admin' && <AdminPortal />}
-      {currentUser?.role === 'customer' && <CustomerPortal />}
-      {currentUser?.role === 'supplier' && <SupplierPortal />}
-      {currentUser?.role === 'staff' && <StaffPortal />}
-      {currentUser?.role === 'finance_partner' && <FinancePartnerPortal />}
-      {currentUser?.role === 'material_partner' && <MaterialPartnerPortal />}
+      {portalElement}
     </main>
   );
-
-  const workspacePath = {
-    customer: '/customer',
-    supplier: '/vendor',
-    staff: '/staff',
-    admin: '/admin',
-    finance_partner: '/finance',
-    material_partner: '/materials'
-  }[currentUser?.role];
-  const portal = () => !currentUser ? <LoginScreen /> : location.pathname !== workspacePath ? <Navigate to={workspacePath || '/home'} replace /> : renderWorkspace();
 
   return (
     <div className="app-root">
@@ -70,13 +55,17 @@ export default function App() {
         <Route path="/login" element={currentUser ? <Navigate to="/home" replace /> : <LoginScreen />} />
         <Route path="/account/:profileId" element={<AccountPage />} />
         <Route path="/cad-analyzer" element={<CADAnalyzerPage />} />
-        <Route path="/customer" element={portal()} />
-        <Route path="/vendor" element={portal()} />
+        <Route path="/customer" element={renderPortalLayout(<CustomerPortal />)} />
+        <Route path="/vendor" element={renderPortalLayout(<SupplierPortal />)} />
         <Route path="/supplier" element={<Navigate to="/vendor" replace />} />
-        <Route path="/finance" element={portal()} />
-        <Route path="/materials" element={portal()} />
-        <Route path="/admin" element={currentUser ? portal() : <Navigate to="/login" replace />} />
-        <Route path="/staff" element={currentUser ? portal() : <Navigate to="/login" replace />} />
+        <Route path="/finance" element={renderPortalLayout(<FinancePartnerPortal />)} />
+        <Route path="/materials" element={renderPortalLayout(<MaterialPartnerPortal />)} />
+        <Route path="/register/customer" element={renderPortalLayout(<CustomerPortal />)} />
+        <Route path="/register/vendor" element={renderPortalLayout(<SupplierPortal />)} />
+        <Route path="/register/finance" element={renderPortalLayout(<FinancePartnerPortal />)} />
+        <Route path="/register/materials" element={renderPortalLayout(<MaterialPartnerPortal />)} />
+        <Route path="/admin" element={renderPortalLayout(<AdminPortal />)} />
+        <Route path="/staff" element={renderPortalLayout(<StaffPortal />)} />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
 

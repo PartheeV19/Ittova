@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import MaterialPartnerWizard from './MaterialPartnerWizard';
 
 export default function MaterialPartnerPortal() {
   const { currentUser, db, showToast } = useApp();
@@ -17,6 +18,7 @@ export default function MaterialPartnerPortal() {
   });
 
   const [allocatingPrj, setAllocatingPrj] = useState(null);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [allocForm, setAllocForm] = useState({
     grade: 'AL6061-T6 (AMS 4027)',
     heatNo: 'HEAT-AL6061-4192',
@@ -98,9 +100,24 @@ export default function MaterialPartnerPortal() {
             <span className="badge badge-info" style={{ fontSize: '0.8rem', padding: '6px 12px' }}>
               AS9100D Aerospace Certified
             </span>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setIsRegistering(v => !v)}
+              style={{ fontSize: '0.82rem' }}
+            >
+              {isRegistering ? 'View Active Workspace' : '+ Register Material Stockist & NABL Lab'}
+            </button>
           </div>
         </div>
       </div>
+
+      {isRegistering && (
+        <MaterialPartnerWizard
+          onComplete={() => setIsRegistering(false)}
+          onCancel={() => setIsRegistering(false)}
+        />
+      )}
 
       {/* KPI Metrics */}
       <div className="grid-4" style={{ gap: '16px', marginBottom: 'var(--sp-4)' }}>
