@@ -1,10 +1,17 @@
-import { resolveSession, SESSION_COOKIE_NAME } from '../auth/session.js';
+import { resolveSession, sessionCookieOptions, SESSION_COOKIE_NAME } from '../auth/session.js';
 
 // Attaches req.user if a valid session cookie is present. Does NOT reject
 // the request on its own -- pair with requireAuth or requireRole below.
-export async function attachUser(request, _response, next) {
+export async function attachUser(request, response, next) {
   const rawToken = request.cookies?.[SESSION_COOKIE_NAME];
-  request.user = rawToken ? await resolveSession(rawToken) : null;
+  if (rawToken) {
+    request.user = await resolveSession(rawToken);
+    if (request.user && typeof response.cookie === 'function') {
+      response.cookie(SESSION_COOKIE_NAME, rawToken, sessionCookieOptions());
+    }
+  } else {
+    request.user = null;
+  }
   next();
 }
 

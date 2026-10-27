@@ -15,6 +15,7 @@ import FinancePartnerPortal from './pages/FinancePartner/FinancePartnerPortal';
 import MaterialPartnerPortal from './pages/MaterialPartner/MaterialPartnerPortal';
 import AccountPage from './pages/Account/AccountPage';
 import CADAnalyzerPage from './pages/CADAnalyzer/CADAnalyzerPage';
+import RoleChangePage from './pages/RoleChange/RoleChangePage';
 
 export default function App() {
   const { currentUser, authChecked, dbLoading, visitorProfile, saveVisitorProfile } = useApp();
@@ -30,6 +31,15 @@ export default function App() {
 
   // If visitor has not provided their basic details yet, show the starting gate
   if (!visitorProfile && !currentUser) {
+    if (location.pathname === '/login') {
+      return (
+        <div className="app-root">
+          <LoginScreen />
+          <Toast />
+        </div>
+      );
+    }
+
     return (
       <div className="app-root">
         <StartingGate onComplete={saveVisitorProfile} />
@@ -53,6 +63,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<Home />} />
         <Route path="/login" element={currentUser ? <Navigate to="/home" replace /> : <LoginScreen />} />
+        <Route path="/change-role" element={currentUser ? <RoleChangePage /> : <Navigate to="/login" replace />} />
         <Route path="/account/:profileId" element={<AccountPage />} />
         <Route path="/cad-analyzer" element={<CADAnalyzerPage />} />
         <Route path="/customer" element={renderPortalLayout(<CustomerPortal />)} />

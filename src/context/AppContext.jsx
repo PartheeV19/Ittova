@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 
 const AppContext = createContext();
@@ -27,7 +27,9 @@ async function apiFetch(path, { method = 'GET', body, headers } = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(payload?.error || `Request failed (${response.status})`);
+    const error = new Error(payload?.error || `Request failed (${response.status})`);
+    error.status = response.status;
+    throw error;
   }
   return payload;
 }
@@ -52,6 +54,7 @@ export function AppProvider({ children }) {
     '/': 'home',
     '/home': 'home',
     '/login': 'login',
+    '/change-role': 'change-role',
     '/customer': 'customer',
     '/vendor': 'vendor',
     '/supplier': 'vendor',
@@ -89,17 +92,6 @@ export function AppProvider({ children }) {
     }, 3800);
   };
 
-  // Wraps an API call, showing a toast on failure instead of throwing into
-  // a component event handler. Returns null on failure so callers can bail.
-  const runAction = useCallback(async (fn, failureMessage) => {
-    try {
-      return await fn();
-    } catch (error) {
-      showToast(error.message || failureMessage || 'Something went wrong.');
-      return null;
-    }
-  }, []);
-
   // --- Auth: session comes from an httpOnly cookie, not localStorage -------
   const [currentUser, setCurrentUser] = useState(null); // { accountId, role, id, publicId, name, status }
   const [authChecked, setAuthChecked] = useState(false);
@@ -107,6 +99,23 @@ export function AppProvider({ children }) {
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [selectedVendorId, setSelectedVendorId] = useState('');
   const [selectedStaffId, setSelectedStaffId] = useState('');
+
+  const logoutRef = useRef(null);
+
+  // Wraps an API call, showing a toast on failure instead of throwing into
+  // a component event handler. Returns null on failure so callers can bail.
+  const runAction = useCallback(async (fn, failureMessage) => {
+    try {
+      return await fn();
+    } catch (error) {
+      if (error?.status === 401 && currentUser) {
+        logoutRef.current?.('Session expired due to inactivity. Please sign in again.');
+        return null;
+      }
+      showToast(error.message || failureMessage || 'Something went wrong.');
+      return null;
+    }
+  }, [currentUser]);
 
   // Looks up the signed-in account's own profile row so we have an id/name
   // to show, beyond the bare accountId/role the session gives us.
@@ -231,6 +240,8 @@ export function AppProvider({ children }) {
       }).catch(() => {});
     }
 
+    try { localStorage.setItem('ITOVA_LAST_ACTIVE', String(Date.now())); } catch { /* ignore */ }
+
     return user;
   }, [loadOwnProfile, visitorProfile]);
 
@@ -238,6 +249,17 @@ export function AppProvider({ children }) {
   useEffect(() => {
     (async () => {
       try {
+        const lastActiveStr = localStorage.getItem('ITOVA_LAST_ACTIVE');
+        const lastActive = lastActiveStr ? parseInt(lastActiveStr, 10) : 0;
+        const ONE_HOUR = 60 * 60 * 1000;
+        if (lastActive && Date.now() - lastActive >= ONE_HOUR) {
+          await apiFetch('/auth/logout', { method: 'POST' }).catch(() => {});
+          setCurrentUser(null);
+          try { localStorage.removeItem('ITOVA_LAST_ACTIVE'); } catch { /* ignore */ }
+          showToast('Previous session expired after 1 hour of inactivity.');
+          return;
+        }
+
         const session = await apiFetch('/auth/me');
         await applySession(session);
       } catch {
@@ -318,8 +340,15 @@ export function AppProvider({ children }) {
 
   const verifyOtp = (contact, code, role, { onVerified, purpose = 'signup', profile } = {}) =>
     runAction(async () => {
-      const session = await apiFetch('/auth/otp/verify', { method: 'POST', body: { contact, code, role, purpose, profile } });
+      const result = await apiFetch('/auth/otp/verify', { method: 'POST', body: { contact, code, ...(role ? { role } : {}), purpose, profile } });
       if (onVerified) onVerified();
+      if (purpose === 'signup') {
+        setCurrentView('login', true);
+        showToast('Account created. Please sign in with your registered contact.');
+        return result;
+      }
+
+      const session = result;
       const user = await applySession(session);
       setCurrentView('home', true);
       return user;
@@ -333,6 +362,21 @@ export function AppProvider({ children }) {
       return user;
     }, 'Invalid credentials.');
 
+  const getRoleChangeStatus = () =>
+    runAction(() => apiFetch('/auth/role-change/status'), 'Could not load role change availability.');
+
+  const requestRoleChangeOtp = (targetRole) =>
+    runAction(() => apiFetch('/auth/role-change/request', { method: 'POST', body: { targetRole } }), 'Could not send the role change code.');
+
+  const changeAccountRole = (targetRole, code) =>
+    runAction(async () => {
+      const session = await apiFetch('/auth/role-change/verify', { method: 'POST', body: { targetRole, code } });
+      const user = await applySession(session);
+      if (user.role !== 'customer') setSelectedCustomerId('');
+      if (user.role !== 'supplier') setSelectedVendorId('');
+      return user;
+    }, 'Could not change your role.');
+
   // Legacy shape used by not-yet-migrated call sites: sets local state only,
   // without a real backend session. Kept so the app still renders while
   // LoginScreen is rewired to requestOtp/verifyOtp/passwordLogin.
@@ -345,7 +389,7 @@ export function AppProvider({ children }) {
     setCurrentView('home', true);
   };
 
-  const logout = () => {
+  const logout = useCallback((reason) => {
     apiFetch('/auth/logout', { method: 'POST' }).catch(() => {});
     setCurrentUser(null);
     setSelectedCustomerId('');
@@ -354,9 +398,65 @@ export function AppProvider({ children }) {
     setIsAdminLoggedIn(false);
     // Clear the visitor profile so the StartingGate shows fresh
     setVisitorProfile(null);
-    try { localStorage.removeItem('ITOVA_VISITOR'); } catch { /* ignore */ }
+    try {
+      localStorage.removeItem('ITOVA_VISITOR');
+      localStorage.removeItem('ITOVA_LAST_ACTIVE');
+    } catch { /* ignore */ }
     setCurrentView('home');
-  };
+    if (reason && typeof reason === 'string') {
+      showToast(reason);
+    }
+  }, []);
+
+  logoutRef.current = logout;
+
+  // --- Inactivity Timeout (1 hour) ----------------------------------------
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
+
+    const recordActivity = () => {
+      try {
+        localStorage.setItem('ITOVA_LAST_ACTIVE', String(Date.now()));
+      } catch { /* ignore */ }
+    };
+
+    recordActivity();
+
+    const checkInactivity = () => {
+      try {
+        const lastActiveStr = localStorage.getItem('ITOVA_LAST_ACTIVE');
+        const lastActive = lastActiveStr ? parseInt(lastActiveStr, 10) : Date.now();
+        if (Date.now() - lastActive >= INACTIVITY_TIMEOUT_MS) {
+          logout('You have been logged out due to 1 hour of inactivity.');
+        }
+      } catch { /* ignore */ }
+    };
+
+    let lastThrottled = 0;
+    const handleUserActivity = () => {
+      const now = Date.now();
+      if (now - lastThrottled > 10000) {
+        lastThrottled = now;
+        recordActivity();
+      }
+    };
+
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach((evt) => window.addEventListener(evt, handleUserActivity, { passive: true }));
+    window.addEventListener('focus', checkInactivity);
+    document.addEventListener('visibilitychange', checkInactivity);
+
+    const timer = setInterval(checkInactivity, 30000); // Check every 30 seconds
+
+    return () => {
+      events.forEach((evt) => window.removeEventListener(evt, handleUserActivity));
+      window.removeEventListener('focus', checkInactivity);
+      document.removeEventListener('visibilitychange', checkInactivity);
+      clearInterval(timer);
+    };
+  }, [currentUser, logout]);
 
   // --- Customer actions ---------------------------------------------------
   const addCustomer = (customerData) =>
@@ -628,6 +728,9 @@ export function AppProvider({ children }) {
       requestSharedOtp,
       verifyOtp,
       passwordLogin,
+      getRoleChangeStatus,
+      requestRoleChangeOtp,
+      changeAccountRole,
       currentView,
       setCurrentView,
       navigateBack,

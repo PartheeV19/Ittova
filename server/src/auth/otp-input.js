@@ -25,7 +25,9 @@ export function normalizePhone(value) {
 export function parseOtpRequest(body = {}) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw invalid('Invalid OTP request.');
   const purpose = body.purpose ?? 'signup';
-  if (!['signup', 'login'].includes(purpose)) throw invalid('Invalid OTP purpose.');
+  const roleChangePurpose = typeof purpose === 'string'
+    && /^role_change:(customer|supplier|finance_partner|material_partner)$/.test(purpose);
+  if (!['signup', 'login'].includes(purpose) && !roleChangePurpose) throw invalid('Invalid OTP purpose.');
   if (body.email !== undefined || body.phone !== undefined || body.deliveryChannels !== undefined) {
     const email = normalizeEmail(body.email);
     const phone = normalizePhone(body.phone);

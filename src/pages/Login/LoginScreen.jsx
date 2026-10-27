@@ -1,257 +1,196 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 
-/** Per-portal display config and API role mapping */
-const PORTAL_CONFIG = {
-  supplier: {
-    title: 'Vendor Portal Access',
-    subtitle: 'Access your manufacturing facility workspace with your registered contact details.',
-    badge: 'Manufacturing Facilities',
-    badgeColor: '#1a3a5c',
-    allowSignup: true,
-    signupLabel: 'Register Facility',
-    signupProfileRole: 'Manufacturing Facility / Vendor',
-    apiRole: 'supplier',
-  },
-  customer: {
-    title: 'Customer Portal Access',
-    subtitle: 'Sign in to submit drawings, track procurement and manage your orders.',
-    badge: 'Buyers & OEMs',
-    badgeColor: '#1a3a2a',
-    allowSignup: false,
-    apiRole: 'customer',
-  },
-  finance_partner: {
-    title: 'Finance Partner Access',
-    subtitle: 'Access PO factoring, tripartite escrow and supplier credit dashboards.',
-    badge: 'Banks & NBFCs',
-    badgeColor: '#2a1a3a',
-    allowSignup: false,
-    apiRole: 'finance_partner',
-  },
-  material_partner: {
-    title: 'Material Partner Access',
-    subtitle: 'Manage billet allocations, MTR traceability and NABL test certifications.',
-    badge: 'Material Stockists & Labs',
-    badgeColor: '#3a2a1a',
-    allowSignup: false,
-    apiRole: 'material_partner',
-  },
-};
+function normalizeContact(value) {
+  const contact = value.trim();
+  return /^[0-9]{10}$/.test(contact) ? `+91${contact}` : contact;
+}
 
-export default function LoginScreen({ portalRole = 'supplier' }) {
-  const { requestOtp, verifyOtp, visitorProfile } = useApp();
-  const config = PORTAL_CONFIG[portalRole] ?? PORTAL_CONFIG.supplier;
-
-  const [purpose, setPurpose] = useState('login');
-  const [fullName, setFullName] = useState('');
-  const [company, setCompany] = useState('');
+export default function LoginScreen() {
+  const { requestOtp, verifyOtp, setCurrentView } = useApp();
   const [contact, setContact] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [devCode, setDevCode] = useState('');
+  const otpInputs = useRef([]);
 
-  const reset = () => { setSent(false); setCode(''); setDevCode(''); setError(''); };
+  const enterDigit = (index, value) => {
+    const digits = value.replace(/[^0-9]/g, '');
+    const next = code.padEnd(6, ' ').split('');
+    if (!digits) next[index] = ' ';
+    else digits.slice(0, 6 - index).split('').forEach((digit, offset) => { next[index + offset] = digit; });
+    setCode(next.join(''));
+    setError('');
+    if (digits) otpInputs.current[Math.min(index + digits.length, 5)]?.focus();
+  };
 
   const submit = async (event) => {
     event.preventDefault();
     if (busy) return;
     setBusy(true);
     setError('');
+
     try {
-      if (purpose === 'signup' && !sent) {
-        if (!fullName.trim() || !company.trim()) {
-          setError('Full name and organisation name are required.');
+      const normalizedContact = normalizeContact(contact);
+      if (!sent) {
+        const result = await requestOtp(normalizedContact, 'login');
+        if (!result) {
+          setError('Unable to send a code. Check your email or phone number and try again.');
           return;
         }
+        if (result.devCode) setDevCode(result.devCode);
+        setSent(true);
+        return;
       }
 
-      const cleanContact = contact.trim();
-      const normalizedContact = /^[0-9]{10}$/.test(cleanContact)
-        ? `+91${cleanContact}`
-        : cleanContact;
+      if (!/^[0-9]{6}$/.test(code.trim())) {
+        setError('Enter the six-digit verification code.');
+        return;
+      }
 
-      const profilePayload = {
-        fullName: fullName.trim() || visitorProfile?.name || '',
-        company: company.trim() || visitorProfile?.company || '',
-        participantRole: config.signupProfileRole || config.title,
-      };
-
-      const result = sent
-        ? await verifyOtp(normalizedContact, code.trim(), config.apiRole, {
-            purpose,
-            profile: profilePayload,
-          })
-        : await requestOtp(normalizedContact, purpose);
-
-      if (result === null) {
-        setError('Unable to continue. Check your details and ensure the backend server is running.');
-      } else if (!sent) {
-        if (result?.devCode) setDevCode(result.devCode);
-        setSent(true);
+      const result = await verifyOtp(normalizedContact, code.trim(), undefined, { purpose: 'login' });
+      if (!result) {
+        setError('Unable to sign in. Check your details and code, or request a new code.');
       }
     } finally {
       setBusy(false);
     }
   };
 
+  const resetCode = () => {
+    setSent(false);
+    setCode('');
+    setDevCode('');
+    setError('');
+  };
+
   return (
-    <main className="container auth-page">
-      <section className="auth-terminal-card" aria-labelledby="sign-in-title">
-
-        {/* Portal badge */}
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          background: config.badgeColor,
-          color: '#e8f0fe',
-          fontSize: '0.72rem',
-          fontWeight: 700,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          padding: '4px 10px',
-          borderRadius: '4px',
-          marginBottom: '14px',
-        }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#6ee7b7', display: 'inline-block' }} />
-          {config.badge}
-        </div>
-
-        <div className="terminal-header">
-          <h1 id="sign-in-title">{config.title}</h1>
-          <p>{config.subtitle}</p>
-        </div>
-
-        {/* Tabs — only show signup tab when this portal supports registration */}
-        {config.allowSignup && (
-          <div className="role-tabs-bar" aria-label={`${config.badge} access options`}>
-            <button
-              type="button"
-              disabled={busy}
-              aria-pressed={purpose === 'login'}
-              className={`role-tab-btn ${purpose === 'login' ? 'active' : ''}`}
-              onClick={() => { setPurpose('login'); reset(); }}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              aria-pressed={purpose === 'signup'}
-              className={`role-tab-btn ${purpose === 'signup' ? 'active' : ''}`}
-              onClick={() => { setPurpose('signup'); reset(); }}
-            >
-              {config.signupLabel}
-            </button>
+    <div className="starting-gate-wrapper">
+      <div className="topline" />
+      <header className="gate-header">
+        <div className="container gate-header-inner">
+          <div className="gate-brand">
+            <span className="gate-brand-title">
+              IT<span className="brand-accent-o">O</span>VA
+            </span>
           </div>
-        )}
+        </div>
+      </header>
 
-        <form className="terminal-form-body" onSubmit={submit} aria-busy={busy}>
-          <fieldset disabled={busy} className="auth-fields">
-
-            {/* Signup-only extra fields */}
-            {config.allowSignup && purpose === 'signup' && !sent && (
-              <>
-                <div className="form-group-block">
-                  <label htmlFor="auth-fullname">Full name</label>
-                  <input
-                    id="auth-fullname"
-                    type="text"
-                    autoComplete="name"
-                    required
-                    value={fullName}
-                    onChange={e => setFullName(e.target.value)}
-                  />
-                </div>
-                <div className="form-group-block">
-                  <label htmlFor="auth-company">
-                    {portalRole === 'supplier' ? 'Facility / Company legal name' : 'Organisation name'}
-                  </label>
-                  <input
-                    id="auth-company"
-                    type="text"
-                    autoComplete="organization"
-                    required
-                    value={company}
-                    onChange={e => setCompany(e.target.value)}
-                  />
-                </div>
-              </>
-            )}
-
-            <div className="form-group-block">
-              <label htmlFor="auth-contact">Email or phone number</label>
-              <input
-                id="auth-contact"
-                type="text"
-                autoComplete="username"
-                required
-                readOnly={sent}
-                value={contact}
-                onChange={e => setContact(e.target.value)}
-              />
+      <main className="gate-main-container" style={{ alignItems: 'center' }}>
+        <div className="container" style={{ maxWidth: 560 }}>
+          <section className="gate-form-card" aria-labelledby="registered-login-title">
+            <div className="gate-form-header">
+              <h1 id="registered-login-title" style={{ margin: 0, fontSize: '1.5rem', color: 'var(--ink)' }}>
+                Registered User Sign In
+              </h1>
+              <p style={{ margin: '6px 0 0', fontSize: '0.9rem', color: 'var(--muted)' }}>
+                Enter the email address or phone number on your account. We’ll send you a one-time code.
+              </p>
             </div>
 
-            {sent && (
-              <div className="form-group-block">
-                <p role="status">Code requested for {contact}. Enter the code you receive.</p>
-                {devCode && (
-                  <div style={{
-                    margin: '8px 0 14px',
-                    padding: '8px 12px',
-                    background: '#fff8e6',
-                    border: '1px solid #ffd57e',
-                    borderRadius: '4px',
-                    fontSize: '0.84rem',
-                    color: '#8c5d00',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '8px',
-                  }}>
-                    <span>Dev mode OTP: <strong style={{ letterSpacing: '2px', color: '#102a43' }}>{devCode}</strong></span>
-                    <button
-                      type="button"
-                      className="btn-link"
-                      style={{ fontSize: '0.8rem', color: '#8c5d00', fontWeight: 'bold' }}
-                      onClick={() => setCode(devCode)}
-                    >
-                      Autofill
+            <form onSubmit={submit} className="gate-form-body" aria-busy={busy}>
+              <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+                <div className="form-group-block">
+                  <label htmlFor="registered-contact">Email or phone number</label>
+                  <input
+                    id="registered-contact"
+                    type="text"
+                    autoComplete="username"
+                    placeholder="name@company.com or +91 98765 43210"
+                    required
+                    readOnly={sent}
+                    value={contact}
+                    onChange={event => setContact(event.target.value)}
+                  />
+                </div>
+
+                {sent && (
+                  <div className="form-group-block">
+                    <p role="status">A code was requested for {contact}. Enter the six-digit code you receive.</p>
+                    {devCode && (
+                      <div style={{
+                        margin: '8px 0 14px',
+                        padding: '8px 12px',
+                        background: '#fff8e6',
+                        border: '1px solid #ffd57e',
+                        borderRadius: '4px',
+                        fontSize: '0.84rem',
+                        color: '#8c5d00',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px'
+                      }}>
+                        <span>Dev mode OTP: <strong style={{ letterSpacing: '2px', color: '#102a43' }}>{devCode}</strong></span>
+                        <button type="button" className="btn-link" onClick={() => { setCode(devCode); otpInputs.current[5]?.focus(); }}>
+                          Autofill
+                        </button>
+                      </div>
+                    )}
+                    <label htmlFor="registered-code-0">Verification code</label>
+                    <div className="gate-otp-boxes" role="group" aria-label="One-time password">
+                      {Array.from({ length: 6 }, (_, index) => (
+                        <input
+                          key={index}
+                          id={`registered-code-${index}`}
+                          ref={element => { otpInputs.current[index] = element; }}
+                          aria-label={`OTP digit ${index + 1}`}
+                          aria-invalid={Boolean(error)}
+                          aria-describedby={error ? 'registered-login-error' : undefined}
+                          inputMode="numeric"
+                          autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                          value={code[index]?.trim() || ''}
+                          onFocus={event => event.target.select()}
+                          onChange={event => enterDigit(index, event.target.value)}
+                          onPaste={event => { event.preventDefault(); enterDigit(index, event.clipboardData.getData('text')); }}
+                          onKeyDown={event => {
+                            if (event.key === 'Backspace' && !code[index]?.trim() && index > 0) {
+                              event.preventDefault();
+                              enterDigit(index - 1, '');
+                              otpInputs.current[index - 1]?.focus();
+                            } else if (event.key === 'ArrowLeft' && index > 0) {
+                              event.preventDefault();
+                              otpInputs.current[index - 1]?.focus();
+                            } else if (event.key === 'ArrowRight' && index < 5) {
+                              event.preventDefault();
+                              otpInputs.current[index + 1]?.focus();
+                            }
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <button type="button" className="btn-link" onClick={resetCode}>
+                      Change email or phone number
                     </button>
                   </div>
                 )}
-                <label htmlFor="auth-code">Verification code</label>
-                <input
-                  id="auth-code"
-                  autoComplete="one-time-code"
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  required
-                  value={code}
-                  onChange={e => setCode(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="btn-link"
-                  onClick={() => { setSent(false); setCode(''); setDevCode(''); }}
-                >
-                  Change contact or request another code
+
+                {error && <p id="registered-login-error" role="alert" className="field-error-msg">{error}</p>}
+
+                <button type="submit" className="btn btn-dark" style={{ width: '100%', marginTop: 12 }}>
+                  {busy ? 'Please wait...' : sent ? 'Verify and sign in' : 'Send verification code'}
                 </button>
-              </div>
-            )}
 
-            {error && <p role="alert" className="field-error-msg">{error}</p>}
+                <p style={{ margin: '18px 0 0', fontSize: '0.84rem', color: 'var(--muted)' }}>
+                  New to ITOVA?{' '}
+                  <button type="button" className="btn-link" onClick={() => setCurrentView('home')}>
+                    Go to registration
+                  </button>
+                </p>
+              </fieldset>
+            </form>
+          </section>
+        </div>
+      </main>
 
-            <button type="submit" className="btn-auth-primary">
-              {busy ? 'Please wait…' : sent ? 'Verify and continue' : 'Send verification code'}
-            </button>
-          </fieldset>
-        </form>
-      </section>
-    </main>
+      <footer className="gate-footer">
+        <div className="container" style={{ fontSize: '0.8rem', color: '#849db0', textAlign: 'center' }}>
+          <span>&copy; {new Date().getFullYear()} ITOVA. All rights reserved.</span>
+        </div>
+      </footer>
+    </div>
   );
 }
