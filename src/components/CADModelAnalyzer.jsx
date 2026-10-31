@@ -323,9 +323,9 @@ export default function CADModelAnalyzer({
             title="Upload PDF, PNG, JPG, or WEBP drawing"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
             <span>Upload drawing</span>
           </button>
@@ -349,7 +349,7 @@ export default function CADModelAnalyzer({
               ) : analysisReport ? (
                 <>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
                   </svg>
                   <span>Run analysis again</span>
                 </>
@@ -389,11 +389,7 @@ export default function CADModelAnalyzer({
             </label>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {consentToCloudAnalysis ? (
-              <span className="badge badge-approved" style={{ fontSize: '0.72rem' }}>
-                &#9889; Gemini Vision Authorized
-              </span>
-            ) : (
+            {!consentToCloudAnalysis && (
               <span className="badge badge-process" style={{ fontSize: '0.72rem' }}>
                 &#128274; Local Deterministic CAM (Zero Cloud Transmission)
               </span>
@@ -418,12 +414,12 @@ export default function CADModelAnalyzer({
       {/* AI Data Governance Modal */}
       {showPolicyModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="card" style={{ maxWidth: '640px', width: '100%', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-card, #1e293b)', border: '1px solid var(--border)', padding: '24px', borderRadius: '12px' }}>
+          <div className="card" style={{ maxWidth: '640px', width: '100%', maxHeight: '90vh', overflowY: 'auto', background: '#fff', color: 'var(--ink)', border: '1px solid rgba(16, 42, 67, 0.24)', padding: '24px', borderRadius: '12px' }}>
             <div className="flex-between" style={{ marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-heading)' }}>ITTOVA Enterprise AI &amp; CAD Data Governance</h3>
-              <button type="button" className="cad-close-btn" onClick={() => setShowPolicyModal(false)}>✕</button>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--ink)' }}>ITTOVA Enterprise AI &amp; CAD Data Governance</h3>
+              <button type="button" className="cad-close-btn" style={{ color: 'var(--ink)', background: '#fff', borderColor: 'rgba(16, 42, 67, 0.35)', transform: 'none', transition: 'none' }} onClick={() => setShowPolicyModal(false)}>✕</button>
             </div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-body)', lineHeight: '1.6' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--ink)', lineHeight: '1.6' }}>
               <p>
                 <strong>1. Zero Public Model Training:</strong> Under our enterprise agreements, technical drawings, CAD blueprints, and 3D geometries submitted for CAM decomposition are <em>never</em> utilized to train or fine-tune public foundation models.
               </p>
@@ -441,7 +437,7 @@ export default function CADModelAnalyzer({
               </p>
             </div>
             <div style={{ marginTop: '20px', textAlign: 'right' }}>
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowPolicyModal(false)}>
+              <button type="button" className="btn btn-sm" style={{ background: '#fff', border: '1px solid var(--ink)', color: 'var(--ink)' }} onClick={() => setShowPolicyModal(false)}>
                 Acknowledge &amp; Return
               </button>
             </div>

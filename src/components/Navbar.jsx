@@ -91,6 +91,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const isOnCadPage = location.pathname === '/cad-analyzer';
+  const isOnPlatformOverview = currentView === 'home' && !isOnCadPage;
 
   const [showLogoutPopdown, setShowLogoutPopdown] = useState(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
@@ -217,7 +218,7 @@ export default function Navbar() {
           <nav className="nav-center-menu">
             <button
               type="button"
-              className={`nav-item-link ${currentView === 'home' ? 'active' : ''}`}
+              className={`nav-item-link ${isOnPlatformOverview ? 'active' : ''}`}
               onClick={() => setCurrentView('home')}
             >
               Overview
@@ -277,7 +278,7 @@ export default function Navbar() {
           <nav className="nav-center-menu">
             <button
               type="button"
-              className={`nav-item-link ${currentView === 'home' ? 'active' : ''}`}
+              className={`nav-item-link ${isOnPlatformOverview ? 'active' : ''}`}
               onClick={() => setCurrentView('home')}
             >
               Platform Overview

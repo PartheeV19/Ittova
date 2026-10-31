@@ -6,7 +6,9 @@ import { closePool } from './db/pool.js';
 // API_PORT stays as the local-dev override (compose.yaml, .env).
 const port = Number.parseInt(process.env.PORT || process.env.API_PORT || '3001', 10);
 const server = app.listen(port, () => {
-  console.log(`ITOVA API listening on http://localhost:${port}`);
+  const address = server.address();
+  const actualPort = address && typeof address === 'object' ? address.port : port;
+  console.log(`ITOVA API listening on http://localhost:${actualPort}`);
 });
 
 let shuttingDown = false;

@@ -10,7 +10,7 @@ This is the Node.js API and PostgreSQL foundation for replacing the browser-only
 4. Start the API with `npm run server:dev`.
 5. Start the Vite app separately with `npm run dev`.
 
-The Vite development server proxies `/api/*` requests to the API at `http://localhost:3001`.
+The API listens on `API_PORT` (default `3001`). Vite listens on `VITE_PORT` (default `3002`), automatically choosing the next available port if that port is occupied. Vite proxies `/api/*` requests to the API port, so the browser address shown by Vite is the frontend port and the API startup line is the backend port.
 
 ## Initial routes
 
