@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { useApp } from './context/AppContext';
 import StartingGate from './pages/StartingGate/StartingGate';
 import Navbar from './components/Navbar';
