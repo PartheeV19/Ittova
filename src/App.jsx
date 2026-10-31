@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { useApp } from './context/AppContext';
 import StartingGate from './pages/StartingGate/StartingGate';
 import Navbar from './components/Navbar';
@@ -36,6 +37,7 @@ export default function App() {
         <div className="app-root">
           <LoginScreen />
           <Toast />
+          <Analytics />
         </div>
       );
     }
@@ -44,6 +46,7 @@ export default function App() {
       <div className="app-root">
         <StartingGate onComplete={saveVisitorProfile} />
         <Toast />
+        <Analytics />
       </div>
     );
   }
@@ -82,6 +85,7 @@ export default function App() {
 
       <Toast />
       <CADModal />
+      <Analytics />
     </div>
   );
 }
