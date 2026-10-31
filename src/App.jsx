@@ -16,6 +16,7 @@ import MaterialPartnerPortal from './pages/MaterialPartner/MaterialPartnerPortal
 import AccountPage from './pages/Account/AccountPage';
 import CADAnalyzerPage from './pages/CADAnalyzer/CADAnalyzerPage';
 import RoleChangePage from './pages/RoleChange/RoleChangePage';
+import { Analytics } from '@vercel/analytics/react';
 
 export default function App() {
   const { currentUser, authChecked, dbLoading, visitorProfile, saveVisitorProfile } = useApp();
@@ -27,7 +28,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname, visitorProfile]);
 
-  if (!authChecked) return <main className="container" role="status">Loading your session...</main>;
+  if (!authChecked) return <><Analytics /><main className="container" role="status">Loading your session...</main></>;
 
   // If visitor has not provided their basic details yet, show the starting gate
   if (!visitorProfile && !currentUser) {
@@ -36,6 +37,7 @@ export default function App() {
         <div className="app-root">
           <LoginScreen />
           <Toast />
+          <Analytics />
         </div>
       );
     }
@@ -44,6 +46,7 @@ export default function App() {
       <div className="app-root">
         <StartingGate onComplete={saveVisitorProfile} />
         <Toast />
+        <Analytics />
       </div>
     );
   }
@@ -82,6 +85,7 @@ export default function App() {
 
       <Toast />
       <CADModal />
+      <Analytics />
     </div>
   );
 }
