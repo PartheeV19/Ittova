@@ -315,15 +315,15 @@ export default function Navbar() {
                     type="button"
                     className="visitor-badge-pill"
                     onClick={() => setShowVisitorPopdown(v => !v)}
-                    title={`Role: ${visitorProfile.role} • ${visitorProfile.company}`}
+                    title={`Visitor contact: ${visitorProfile.email}`}
                     aria-expanded={showVisitorPopdown}
                     style={{ cursor: 'pointer', fontFamily: 'inherit', background: 'var(--paper)', border: '1px solid var(--line)' }}
                   >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/>
                     </svg>
-                    <span>{visitorProfile.name}</span>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>({visitorProfile.company})</span>
+                    <span>{visitorProfile.email}</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>({visitorProfile.phone})</span>
                     <svg
                       width="10"
                       height="10"
@@ -384,15 +384,15 @@ export default function Navbar() {
                           fontWeight: 800,
                           fontSize: '1rem',
                         }}>
-                          {visitorProfile.name?.charAt(0)?.toUpperCase() ?? '?'}
+                          {visitorProfile.email?.charAt(0)?.toUpperCase() ?? '?'}
                         </div>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text, #102a43)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {visitorProfile.name}
+                            {visitorProfile.email}
                           </div>
-                          {visitorProfile.company && (
+                          {visitorProfile.phone && (
                             <div style={{ fontSize: '0.74rem', color: 'var(--muted, #64748b)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {visitorProfile.company}
+                              {visitorProfile.phone}
                             </div>
                           )}
                           <div style={{
@@ -408,7 +408,7 @@ export default function Navbar() {
                             fontWeight: 700,
                             color: 'var(--accent, #1a3a5c)',
                           }}>
-                            {visitorProfile.role}
+                            Visitor contact
                           </div>
                         </div>
                       </div>

@@ -30,7 +30,7 @@ export default function App() {
 
   if (!authChecked) return <><Analytics /><main className="container" role="status">Loading your session...</main></>;
 
-  // If visitor has not provided their basic details yet, show the starting gate
+  // Collect the visitor's contact details before continuing without an account.
   if (!visitorProfile && !currentUser) {
     if (location.pathname === '/login') {
       return (

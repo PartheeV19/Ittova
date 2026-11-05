@@ -16,8 +16,11 @@ The API listens on `API_PORT` (default `3001`). Vite listens on `VITE_PORT` (def
 
 - `GET /api/v1/health/live` reports that the API process is running.
 - `GET /api/v1/health/ready` checks the PostgreSQL connection and returns `503` until the database is reachable.
+- `POST /api/v1/visitors` stores a visitor's email and international phone number without creating a signed-in account.
 
 The first migration establishes account, customer, vendor, staff, project, machine, quote, document-metadata, and project-event tables. Document files themselves will live in object storage; PostgreSQL stores their metadata and storage keys.
+
+Migration `006_visitor_contacts.sql` adds the public visitor contact table. Apply pending migrations with `npm run db:migrate` before using the contact form.
 
 ## OTP delivery
 

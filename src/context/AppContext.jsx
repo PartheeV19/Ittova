@@ -148,24 +148,32 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Starting gate visitor intake profile -- pre-auth, so this can stay local.
+  // Contact-only visitor profile, persisted in PostgreSQL before caching locally.
   const [visitorProfile, setVisitorProfile] = useState(() => {
     try {
       const saved = localStorage.getItem('ITOVA_VISITOR');
-      return saved ? JSON.parse(saved) : null;
+      const profile = saved ? JSON.parse(saved) : null;
+      return profile?.contactSaved === true ? profile : null;
     } catch {
       return null;
     }
   });
 
-  const saveVisitorProfile = (profile) => {
-    setVisitorProfile(profile);
+  const saveVisitorProfile = async (profile) => {
+    const savedContact = await runAction(
+      () => apiFetch('/visitors', { method: 'POST', body: { email: profile.email, phone: profile.phone } }),
+      'Could not save your contact details.'
+    );
+    if (!savedContact) return false;
+
+    const savedProfile = { email: savedContact.email, phone: savedContact.phone, contactSaved: true };
+    setVisitorProfile(savedProfile);
     try {
-      localStorage.setItem('ITOVA_VISITOR', JSON.stringify(profile));
+      localStorage.setItem('ITOVA_VISITOR', JSON.stringify(savedProfile));
     } catch (e) {
       console.error(e);
     }
-    setCurrentView('home', true);
+    return true;
   };
 
   const clearVisitorProfile = () => {
@@ -176,7 +184,7 @@ export function AppProvider({ children }) {
       console.error(e);
     }
     setCurrentView('home');
-    showToast('Visitor session reset. Please re-enter basic details.');
+    showToast('Contact details reset. Enter your email and phone to continue.');
   };
 
   const applySession = useCallback(async (session) => {
@@ -324,20 +332,6 @@ export function AppProvider({ children }) {
   const requestOtp = (contact, purpose = 'signup') =>
     runAction(() => apiFetch('/auth/otp/request', { method: 'POST', body: { contact, purpose } }));
 
-  // One shared challenge, delivered to both destinations. Do not issue two
-  // independent OTP requests: those would generate different codes.
-  const requestSharedOtp = (email, phone) => runAction(async () => {
-    const result = await apiFetch('/auth/otp/request', {
-      method: 'POST',
-      body: { contact: email, email, phone, purpose: 'signup', deliveryChannels: ['email', 'sms'] }
-    });
-    // In dev mode SMS may not be configured — fall back to email-only silently.
-    if (!result?.acceptedTo?.includes(email)) {
-      throw new Error('Email delivery is not configured. Please check your RESEND_API_KEY and OTP_EMAIL_FROM settings.');
-    }
-    return result;
-  });
-
   const verifyOtp = (contact, code, role, { onVerified, purpose = 'signup', profile } = {}) =>
     runAction(async () => {
       const result = await apiFetch('/auth/otp/verify', { method: 'POST', body: { contact, code, ...(role ? { role } : {}), purpose, profile } });
@@ -396,12 +390,8 @@ export function AppProvider({ children }) {
     setSelectedVendorId('');
     setSelectedStaffId('');
     setIsAdminLoggedIn(false);
-    // Clear the visitor profile so the StartingGate shows fresh
-    setVisitorProfile(null);
-    try {
-      localStorage.removeItem('ITOVA_VISITOR');
-      localStorage.removeItem('ITOVA_LAST_ACTIVE');
-    } catch { /* ignore */ }
+    // Keep the saved visitor contact so signing out does not block public browsing.
+    try { localStorage.removeItem('ITOVA_LAST_ACTIVE'); } catch { /* ignore */ }
     setCurrentView('home');
     if (reason && typeof reason === 'string') {
       showToast(reason);
@@ -725,7 +715,6 @@ export function AppProvider({ children }) {
       login,
       logout,
       requestOtp,
-      requestSharedOtp,
       verifyOtp,
       passwordLogin,
       getRoleChangeStatus,

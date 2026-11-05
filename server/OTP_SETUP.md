@@ -1,6 +1,6 @@
-# OTP setup: Resend email and MSG91 SMS
+# OTP setup: registered account sign-in and role changes
 
-The welcome form requests one server-generated six-digit code for both destinations. ITOVA checks the code itself; providers only deliver it. A shared code proves access to at least one destination, not independent ownership of both.
+Public visitors can browse without signing in or using an OTP. The visitor details form saves an email address and phone number to the `visitor_contacts` table. OTP remains available for registered account sign-in and role changes. ITOVA generates and checks the code; providers only deliver it.
 
 ## Resend first
 
@@ -8,7 +8,7 @@ The welcome form requests one server-generated six-digit code for both destinati
 2. Create a sending API key scoped to that domain at https://resend.com/api-keys.
 3. In the ignored root `.env`, set `RESEND_API_KEY` and `OTP_EMAIL_FROM`, for example `ITOVA <otp@your-verified-domain.com>`. Do not use an unverified example address. Never put credentials in a `VITE_` variable or paste them into chat.
 4. Configure `DATABASE_URL` for your PostgreSQL database. Run `npm run db:migrate`, then `npm run server:dev`.
-5. Email-only requests are supported by the existing portal sign-in screen. Choose registration for a new customer/vendor, request a code with an email address, and verify it. The initial details form intentionally waits for BOTH providers to be configured, preserving its promise of sending the same code to email and phone.
+5. Registered account sign-in supports email-only verification. Visitors do not need provider credentials to browse the public site.
 
 ## MSG91 for SMS
 

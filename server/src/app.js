@@ -11,6 +11,7 @@ import staffRoutes from './routes/staff.routes.js';
 import projectRoutes from './routes/projects.routes.js';
 import accountRoutes from './routes/accounts.routes.js';
 import cadRoutes from './routes/cad.routes.js';
+import visitorRoutes from './routes/visitors.routes.js';
 
 const app = express();
 const apiPrefix = `/api/${process.env.API_VERSION || 'v1'}`;
@@ -39,6 +40,7 @@ app.use(`${apiPrefix}/staff`, staffRoutes);
 app.use(`${apiPrefix}/projects`, projectRoutes);
 app.use(`${apiPrefix}/accounts`, accountRoutes);
 app.use(`${apiPrefix}/cad`, cadRoutes);
+app.use(`${apiPrefix}/visitors`, visitorRoutes);
 
 app.get(`${apiPrefix}/health/live`, (_request, response) => {
   response.json({ status: 'ok' });
