@@ -122,7 +122,7 @@ if (process.argv[1] && process.argv[1].endsWith('bootstrap.js')) {
     const result = await bootstrapStaffAccounts();
     console.log(`Successfully bootstrapped ${result.length} accounts. All departmental staff initialized.`);
   } catch (err) {
-    console.error('Bootstrap failed:', err.message);
+    console.error('Bootstrap failed:', err.message || err);
     process.exitCode = 1;
   } finally {
     await closePool();
